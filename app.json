@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "auction.2",
-    "slug": "auction.2",
+    "name": "Tobie",
+    "slug": "Tobie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "auction2",
+    "scheme": "Tobie",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
