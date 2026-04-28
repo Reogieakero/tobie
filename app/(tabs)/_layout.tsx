@@ -4,32 +4,31 @@ import { Platform } from 'react-native';
 
 export default function TabsLayout() {
   return (
-    <Tabs 
-      screenOptions={{ 
-        headerShown: false, 
-        tabBarStyle: { 
-          backgroundColor: '#F9F9F9', 
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#F9F9F9',
           borderTopColor: '#EFEFEF',
-          // Reduced height: 50-55 is standard for a slim look
-          height: Platform.OS === 'ios' ? 75 : 55, 
+          height: Platform.OS === 'ios' ? 75 : 55,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           paddingTop: 8,
-          elevation: 0, // Removes shadow on Android for a flatter look
+          elevation: 0,
         },
         tabBarItemStyle: {
           justifyContent: 'center',
           alignItems: 'center',
         },
-        tabBarActiveTintColor: '#1A1A1A', 
+        tabBarActiveTintColor: '#1A1A1A',
         tabBarInactiveTintColor: '#BBB',
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
           fontSize: 10,
-          marginTop: 0, // Keeps label close to icon
+          marginTop: 0,
         },
         tabBarIconStyle: {
-          marginBottom: -2, // Pulls the icon slightly lower
-        }
+          marginBottom: -2,
+        },
       }}
     >
       <Tabs.Screen
@@ -67,6 +66,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={22} color={color} />,
         }}
       />
+
+      {/* Hide profile sub-components from the tab bar */}
+      <Tabs.Screen name="profile/components/ProfileHeader"   options={{ href: null }} />
+      <Tabs.Screen name="profile/components/ProfileTabs"     options={{ href: null }} />
+      <Tabs.Screen name="profile/components/ProfileGrid"     options={{ href: null }} />
+      <Tabs.Screen name="profile/components/ProfileBio" options={{ href: null }} />
+      <Tabs.Screen name="profile/components/ProfileListings" options={{ href: null }} />
     </Tabs>
   );
 }

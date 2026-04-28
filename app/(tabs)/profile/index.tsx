@@ -1,33 +1,67 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import ProfileBio from './components/ProfileBio';
+import ProfileGrid from './components/ProfileGrid';
+import ProfileHeader from './components/ProfileHeader';
+import ProfileListings from './components/ProfileListings';
+import ProfileTabs from './components/ProfileTabs';
+
+type Tab = 'listings' | 'bids' | 'won';
 
 export default function ProfileScreen() {
+  const [activeTab, setActiveTab] = useState<Tab>('listings');
+
   return (
-    <View style={styles.container}>
-      <View style={styles.profileHeader}>
-        <View style={styles.avatar} />
-        <Text style={styles.name}>Account Settings</Text>
-      </View>
-      
-      <View style={styles.menu}>
-        {['Personal Info', 'Order History', 'Payment Methods', 'Support'].map((item) => (
-          <TouchableOpacity key={item} style={styles.menuItem}>
-            <Text style={styles.menuText}>{item}</Text>
-            <Ionicons name="chevron-forward" size={18} color="#CCC" />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
+
+      {/* Top Nav */}
+      <View style={styles.topNav}>
+        <Text style={styles.username}>Profile</Text>
+        <View style={styles.navActions}>
+          <TouchableOpacity style={styles.navBtn}>
+            <Ionicons name="add-circle-outline" size={26} color="#111" />
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity style={styles.navBtn}>
+            <Ionicons name="menu-outline" size={26} color="#111" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
+      >
+        <ProfileHeader />
+        <ProfileBio />
+        <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {activeTab === 'listings' && <ProfileGrid />}
+        {activeTab === 'bids'     && <ProfileListings type="bids" />}
+        {activeTab === 'won'      && <ProfileListings type="won" />}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F9F9', paddingTop: 80 },
-  profileHeader: { alignItems: 'center', marginBottom: 40 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E0E0E0', marginBottom: 15 },
-  name: { fontFamily: 'Unbounded_700Bold', fontSize: 20 },
-  menu: { backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 20, overflow: 'hidden' },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  menuText: { fontFamily: 'Inter_500Medium', fontSize: 15 }
+  safe: { flex: 1, backgroundColor: '#fff' },
+  topNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    // no borderBottom — clean header
+  },
+  username: {
+    fontFamily: 'Unbounded_700Bold',
+    fontSize: 16,
+    color: '#111',
+  },
+  navActions: { flexDirection: 'row', gap: 8 },
+  navBtn: { padding: 4 },
 });
