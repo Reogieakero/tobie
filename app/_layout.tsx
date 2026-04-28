@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Stack } from 'expo-router';
-import { LogBox, StatusBar as RNStatusBar, View } from "react-native";
+import { LogBox, Platform, StatusBar as RNStatusBar, View } from "react-native";
 import FlashMessage from "react-native-flash-message";
 
 LogBox.ignoreLogs(['TypeError: Network request failed']);
@@ -14,7 +14,10 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
         </Stack>
-        <FlashMessage position="top" statusBarHeight={RNStatusBar.currentHeight} />
+        <FlashMessage 
+          position="top" 
+          statusBarHeight={Platform.OS === 'ios' ? 0 : RNStatusBar.currentHeight}
+        />
       </View>
     </ThemeProvider>
   );

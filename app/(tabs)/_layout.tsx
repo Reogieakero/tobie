@@ -73,6 +73,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/components/ProfileGrid"     options={{ href: null }} />
       <Tabs.Screen name="profile/components/ProfileBio" options={{ href: null }} />
       <Tabs.Screen name="profile/components/ProfileListings" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/apply" options={{ href: null }} />
+
     </Tabs>
   );
 }

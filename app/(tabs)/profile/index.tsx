@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +25,10 @@ export default function ProfileScreen() {
     logout();
   };
 
+  const goToShop = () => {
+    router.push('/profile/shop');
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -31,8 +36,8 @@ export default function ProfileScreen() {
       <View style={styles.topNav}>
         <Text style={styles.username}>Profile</Text>
         <View style={styles.navActions}>
-          <TouchableOpacity style={styles.navBtn}>
-            <Ionicons name="add-circle-outline" size={26} color="#111" />
+          <TouchableOpacity style={styles.navBtn} onPress={goToShop}>
+            <Ionicons name="storefront-outline" size={24} color="#111" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.navBtn} onPress={toggleMenu}>
             <Ionicons name="menu-outline" size={26} color="#111" />
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111',
   },
-  navActions: { flexDirection: 'row', gap: 8 },
+  navActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   navBtn: { padding: 4 },
   modalOverlay: {
     flex: 1,
