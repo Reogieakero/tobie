@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -38,8 +39,14 @@ export default function SignUpScreen() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', 
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', 
+      () => setKeyboardVisible(false)
+    );
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
@@ -55,14 +62,25 @@ export default function SignUpScreen() {
         <View style={styles.blob1} /><View style={styles.blob2} />
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           scrollEnabled={isKeyboardVisible}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          bounces={isKeyboardVisible}
         >
-          <View style={styles.signUpSpacer} />
+          <View style={styles.logoHeader}>
+            <Image 
+              source={require('@/assets/images/wolf-logo-no-bg.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+
           <View style={styles.content}>
             <Text style={styles.title}>Create your{'\n'}Account</Text>
             <Text style={styles.subtitle}>Join Tobie and start bidding on exclusive items.</Text>
@@ -101,7 +119,7 @@ export default function SignUpScreen() {
 
               <Text style={styles.footerText}>
                 Already have an account?{' '}
-                <Text style={styles.linkText} onPress={() => router.push('/sign-in')}>Sign In</Text>
+                <Text style={styles.linkText} onPress={() => router.push('/(auth)/sign-in')}>Sign In</Text>
               </Text>
             </View>
           </View>
@@ -119,12 +137,24 @@ const styles = StyleSheet.create({
   ring3: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', top: height * 0.38, right: -40 },
   blob1: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.03)', bottom: 140, right: 10 },
   blob2: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(0,0,0,0.025)', top: 60, left: -30 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 40 },
-  signUpSpacer: { height: 60 },
+  scrollContent: { 
+    flexGrow: 1, 
+    paddingHorizontal: 16, 
+    paddingTop: height * 0.05, 
+    paddingBottom: 40 
+  },
+  logoHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 130, 
+    height: 130,
+  },
   content: { width: '100%' },
   title: { fontFamily: 'Unbounded_800ExtraBold', fontSize: 28, color: '#1A1A1A', letterSpacing: -0.5, marginBottom: 12, lineHeight: 36 },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 15, color: '#888', marginBottom: 32, maxWidth: '85%', lineHeight: 22 },
-  form: { gap: 28 },
+  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 15, color: '#888', marginBottom: 24, maxWidth: '85%', lineHeight: 22 },
+  form: { gap: 24 },
   validationContainer: { marginTop: 8, gap: 4 },
   validationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   validationText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#BBB' },
