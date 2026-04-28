@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Tobie",
-    "slug": "Tobie",
+    "slug": "tobie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/wolf-logo.png",
-    "scheme": "Tobie",
+    "scheme": "tobie",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -42,7 +42,8 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,
