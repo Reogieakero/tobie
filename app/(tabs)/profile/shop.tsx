@@ -131,17 +131,27 @@ export default function ShopScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleExit}>
+      
+      <View style={styles.topNav}>
+        <TouchableOpacity style={styles.navBtn} onPress={handleExit}>
           <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{status === 'approved' ? 'SHOP DASHBOARD' : 'MY SHOP'}</Text>
-        {status === 'approved' ? (
-          <TouchableOpacity><Ionicons name="settings-outline" size={22} color="#111" /></TouchableOpacity>
-        ) : (
-          <View style={styles.placeholder} />
-        )}
+        
+        <Text style={styles.headerTitle}>
+          {status === 'approved' ? 'SHOP DASHBOARD' : 'MY SHOP'}
+        </Text>
+
+        <View style={styles.navActions}>
+          {status === 'approved' ? (
+            <TouchableOpacity style={styles.navBtn}>
+              <Ionicons name="settings-outline" size={24} color="#111" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 32 }} />
+          )}
+        </View>
       </View>
+
       {renderContent()}
     </SafeAreaView>
   );
@@ -149,8 +159,18 @@ export default function ShopScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: '#F0F0F0' },
-  headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 14, color: '#111' },
-  backBtn: { padding: 4 },
-  placeholder: { width: 32 },
+  topNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  headerTitle: {
+    fontFamily: 'Unbounded_700Bold',
+    fontSize: 16,
+    color: '#111',
+  },
+  navActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  navBtn: { padding: 4 },
 });

@@ -9,6 +9,7 @@ export function useApplyForm() {
     const [city, setCity] = useState('');
     const [loading, setLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
+    const [nameError, setNameError] = useState('');
     
     const [formData, setFormData] = useState({
         shopName: '',
@@ -28,6 +29,10 @@ export function useApplyForm() {
     const isPhoneValid = (num: string) => /^(09|\+639)\d{9}$/.test(num);
     const isZipValid = (zip: string) => /^\d{4}$/.test(zip);
     const isNameValid = (name: string) => name.trim().length >= 3;
+
+    const generateSlug = (name: string) => {
+        return name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+    };
 
     useEffect(() => {
         async function getUser() {
@@ -54,15 +59,32 @@ export function useApplyForm() {
 
     const handleSubmit = async () => {
         setLoading(true);
+        setNameError('');
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("User not authenticated");
+
+            const { data: existingShop } = await supabase
+                .from('shop_applications')
+                .select('shop_name')
+                .eq('shop_name', formData.shopName.trim())
+                .maybeSingle();
+
+            if (existingShop) {
+                setNameError("This shop name is already taken");
+                throw new Error("Shop name already taken");
+            }
+
+            const slug = generateSlug(formData.shopName);
+            const customLink = `tobie/${slug}`;
 
             const { data, error: dbError } = await supabase
                 .from('shop_applications')
                 .insert([{
                     user_id: user.id,
-                    shop_name: formData.shopName,
+                    shop_name: formData.shopName.trim(),
+                    shop_slug: slug,
+                    custom_link: customLink,
                     category: formData.category,
                     phone: formData.phone,
                     zip_code: formData.zipCode,
@@ -74,13 +96,12 @@ export function useApplyForm() {
                 .single();
 
             if (dbError) throw dbError;
-            if (!data) throw new Error("Insert returned no data — check RLS INSERT policy on shop_applications");
 
-            // Trigger the Edge Function
-            const { error: funcError } = await supabase.functions.invoke('shop-approval', {
+            await supabase.functions.invoke('shop-approval', {
                 body: { 
                     applicationId: data.id, 
                     shopName: formData.shopName,
+                    customLink: customLink,
                     applicantEmail: user.email,
                     category: formData.category,
                     phone: formData.phone,
@@ -90,12 +111,7 @@ export function useApplyForm() {
                 },
             });
 
-            if (funcError) throw new Error(`Email notification failed: ${funcError.message}`);
-
             showToast("Success", "Application sent for admin approval.", "success");
-
-            // ── Go back to the shop screen so it immediately shows "pending" ──
-            // We use router.replace so the apply screen is removed from the stack.
             router.replace('/profile/shop');
 
         } catch (err: any) {
@@ -107,6 +123,7 @@ export function useApplyForm() {
 
     return { 
         formData, setFormData, touched, setTouched, agreed, setAgreed, 
-        userEmail, city, loading, handleSubmit, isPhoneValid, isZipValid, isNameValid 
+        userEmail, city, loading, handleSubmit, isPhoneValid, isZipValid, isNameValid,
+        nameError, generateSlug
     };
 }

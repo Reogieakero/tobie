@@ -21,7 +21,8 @@ export default function ApplyFormScreen() {
   const router = useRouter();
   const { 
     formData, setFormData, touched, setTouched, agreed, setAgreed, 
-    userEmail, city, loading, handleSubmit, isPhoneValid, isZipValid, isNameValid 
+    userEmail, city, loading, handleSubmit, isPhoneValid, isZipValid, isNameValid,
+    nameError, generateSlug 
   } = useApplyForm();
 
   const [showPicker, setShowPicker] = useState(false);
@@ -33,15 +34,19 @@ export default function ApplyFormScreen() {
   }, []);
 
   const isFormValid = isPhoneValid(formData.phone) && formData.category && 
-                      isNameValid(formData.shopName) && isZipValid(formData.zipCode) && agreed && city;
+                      isNameValid(formData.shopName) && isZipValid(formData.zipCode) && 
+                      agreed && city && !nameError;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}><Ionicons name="close" size={24} color="#111" /></TouchableOpacity>
+      
+      <View style={styles.topNav}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+          <Ionicons name="close" size={26} color="#111" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>APPLICATION</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 32 }} /> 
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -52,14 +57,22 @@ export default function ApplyFormScreen() {
               <Text style={styles.subtitle}>Applying as: <Text style={styles.emailHighlight}>{userEmail}</Text></Text>
             </View>
 
-            <AnimatedInput
-              placeholder="Shop Name"
-              value={formData.shopName}
-              onChangeText={(text) => setFormData({ ...formData, shopName: text })}
-              rightElement={isNameValid(formData.shopName) ? <Ionicons name="checkmark-circle" size={18} color="#4CAF50" /> : null}
-            />
+            <View style={{ marginBottom: 20 }}>
+                <AnimatedInput
+                placeholder="Shop Name"
+                value={formData.shopName}
+                error={nameError}
+                onChangeText={(text) => setFormData({ ...formData, shopName: text })}
+                rightElement={isNameValid(formData.shopName) && !nameError ? <Ionicons name="checkmark-circle" size={18} color="#4CAF50" /> : null}
+                />
+                {isNameValid(formData.shopName) && !nameError && (
+                    <Text style={styles.linkPreview}>
+                        Link: <Text style={styles.linkPreviewBold}>tobie/{generateSlug(formData.shopName)}</Text>
+                    </Text>
+                )}
+            </View>
 
-            <TouchableOpacity style={{ marginVertical: 20 }} onPress={() => setShowPicker(true)}>
+            <TouchableOpacity style={{ marginBottom: 20 }} onPress={() => setShowPicker(true)}>
               <View pointerEvents="none">
                 <AnimatedInput 
                   placeholder="Primary Category" 
@@ -164,8 +177,19 @@ export default function ApplyFormScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
+  topNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  headerTitle: {
+    fontFamily: 'Unbounded_700Bold',
+    fontSize: 16,
+    color: '#111',
+  },
+  navBtn: { padding: 4 },
   scrollContent: { padding: 16, flexGrow: 1 },
   formHeader: { marginBottom: 20 },
   title: { fontFamily: 'Unbounded_700Bold', fontSize: 24, color: '#111' },
@@ -173,6 +197,8 @@ const styles = StyleSheet.create({
   emailHighlight: { fontFamily: 'Inter_600SemiBold', color: '#111' },
   row: { flexDirection: 'row' },
   cityText: { fontSize: 10, color: '#4CAF50', marginTop: 4, fontFamily: 'Inter_600SemiBold' },
+  linkPreview: { fontSize: 12, color: '#777', marginTop: 8, fontFamily: 'Inter_400Regular' },
+  linkPreviewBold: { color: '#000', fontFamily: 'Inter_600SemiBold' },
   boxLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#aaa', textTransform: 'uppercase', marginBottom: 12, letterSpacing: 1 },
   descriptionBox: { fontFamily: 'Inter_500Medium', fontSize: 14, backgroundColor: '#F9F9F9', borderRadius: 14, padding: 16, minHeight: 100, borderWidth: 1, borderColor: '#eee', color: '#111' },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 30 },
