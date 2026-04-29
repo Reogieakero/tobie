@@ -1,10 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Animated,
+    AppState,
+    AppStateStatus,
     Pressable,
     ScrollView,
     StatusBar,
@@ -22,27 +25,84 @@ export default function ShopScreen() {
   const [shopData, setShopData] = useState<any>(null);
   const [isPressed, setIsPressed] = useState(false);
   const holdAnim = useRef(new Animated.Value(0)).current;
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // ── Core fetch ────────────────────────────────────────────
+  // Extracted so it can be called from useFocusEffect, AppState, and realtime.
+  const fetchApplication = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setStatus('none'); return; }
+
+    const { data } = await supabase
+      .from('shop_applications')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (data) {
+      setStatus(data.status as AppStatus);
+      setShopData(data);
+    } else {
+      setStatus('none');
+    }
+  }, []);
+
+  // ── Re-fetch every time this screen gains focus ───────────
+  // This is the KEY fix: when the user comes back from the apply screen,
+  // this fires immediately and shows the pending state — no logout needed.
+  useFocusEffect(
+    useCallback(() => {
+      fetchApplication();
+    }, [fetchApplication])
+  );
+
+  // ── Real-time subscription + AppState fallback ────────────
   useEffect(() => {
-    async function checkApplication() {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setupRealtime() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
-        .from('shop_applications')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      channel = supabase
+        .channel(`shop_screen:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'shop_applications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const row = payload.new as any;
+            if (row?.status) {
+              setStatus(row.status as AppStatus);
+              setShopData(row);
+            }
+          }
+        )
+        .subscribe();
 
-      if (data) {
-        setStatus(data.status as AppStatus);
-        setShopData(data);
-      } else {
-        setStatus('none');
-      }
+      channelRef.current = channel;
     }
-    checkApplication();
-  }, []);
+
+    setupRealtime();
+
+    // AppState fallback: re-fetch when app is foregrounded
+    // (catches approval if realtime is not enabled on the table)
+    const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') fetchApplication();
+    });
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      appStateSub.remove();
+    };
+  }, [fetchApplication]);
 
   const handleExit = () => router.replace('/(tabs)/profile');
 
@@ -119,7 +179,6 @@ export default function ShopScreen() {
             <Text style={styles.pendingText}>WAITING FOR APPROVAL</Text>
           </View>
 
-          {/* Details card */}
           {shopData && (
             <View style={styles.detailCard}>
               <DetailRow icon="storefront-outline" label="Shop Name" value={shopData.shop_name} />
@@ -236,7 +295,6 @@ export default function ShopScreen() {
   );
 }
 
-// Small helper component for detail rows
 function DetailRow({ icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <View style={styles.detailRow}>
@@ -253,7 +311,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   centerFill: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -267,7 +324,6 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   placeholder: { width: 32 },
 
-  // Shared content layout
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -299,7 +355,6 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
 
-  // Pending state
   pendingIconCircle: {
     width: 88,
     height: 88,
@@ -347,7 +402,6 @@ const styles = StyleSheet.create({
   detailLabel: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#AAA' },
   detailValue: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#111', marginTop: 1 },
 
-  // Hold-to-apply
   actionContainer: { alignItems: 'center', width: '100%' },
   holdHint: {
     fontFamily: 'Inter_400Regular',
@@ -386,7 +440,6 @@ const styles = StyleSheet.create({
     color: '#111',
   },
 
-  // Approved / Dashboard
   dashboardContent: { padding: 20, alignItems: 'center' },
   shopHeader: { alignItems: 'center', marginVertical: 28 },
   shopIcon: {

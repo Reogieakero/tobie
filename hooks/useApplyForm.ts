@@ -93,7 +93,10 @@ export function useApplyForm() {
             if (funcError) throw new Error(`Email notification failed: ${funcError.message}`);
 
             showToast("Success", "Application sent for admin approval.", "success");
-            router.replace('/(tabs)/profile');
+
+            // ── Go back to the shop screen so it immediately shows "pending" ──
+            // We use router.replace so the apply screen is removed from the stack.
+            router.replace('/profile/shop');
 
         } catch (err: any) {
             showToast("Error", err.message || "Failed to submit", "danger");
