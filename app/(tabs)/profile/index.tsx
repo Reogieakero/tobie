@@ -29,6 +29,11 @@ export default function ProfileScreen() {
     router.push('/profile/shop');
   };
 
+  const goToSettings = () => {
+    setMenuVisible(false);
+    router.push('/profile/settings');
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -54,7 +59,7 @@ export default function ProfileScreen() {
         <TouchableWithoutFeedback onPress={toggleMenu}>
           <View style={styles.modalOverlay}>
             <View style={styles.dropdown}>
-              <TouchableOpacity style={styles.menuItem} onPress={toggleMenu}>
+              <TouchableOpacity style={styles.menuItem} onPress={goToSettings}>
                 <Ionicons name="settings-outline" size={20} color="#111" />
                 <Text style={styles.menuText}>Settings</Text>
               </TouchableOpacity>

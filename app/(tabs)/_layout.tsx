@@ -150,6 +150,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/components/ApplyState"                 options={{ href: null }} />
       <Tabs.Screen name="profile/shop/my-shop"                 options={{ href: null }} />
       <Tabs.Screen name="profile/components/PendingState"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/index"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/account/index"                 options={{ href: null }} />
 
       
     </Tabs>
