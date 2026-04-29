@@ -74,21 +74,23 @@ export function useApplyForm() {
                 .single();
 
             if (dbError) throw dbError;
+            if (!data) throw new Error("Insert returned no data — check RLS INSERT policy on shop_applications");
 
             // Trigger the Edge Function
             const { error: funcError } = await supabase.functions.invoke('shop-approval', {
                 body: { 
                     applicationId: data.id, 
                     shopName: formData.shopName,
-                    applicantEmail: user.email 
+                    applicantEmail: user.email,
+                    category: formData.category,
+                    phone: formData.phone,
+                    city: city,
+                    zipCode: formData.zipCode,
+                    description: formData.description,
                 },
             });
 
-            if (funcError) {
-                console.error("Function Error:", funcError);
-                // We don't throw here so the user still sees the "Success" toast 
-                // since the DB record was actually created.
-            }
+            if (funcError) throw new Error(`Email notification failed: ${funcError.message}`);
 
             showToast("Success", "Application sent for admin approval.", "success");
             router.replace('/(tabs)/profile');
