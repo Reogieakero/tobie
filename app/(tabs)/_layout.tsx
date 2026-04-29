@@ -153,6 +153,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/settings/index"                 options={{ href: null }} />
       <Tabs.Screen name="profile/settings/account/index"                 options={{ href: null }} />
       <Tabs.Screen name="profile/settings/my-shop/index"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ShopHeader" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/StatsGrid" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/RevenueCard" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/LiveBidding" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ManagementGrid" options={{ href: null }} />
 
       
     </Tabs>
