@@ -16,92 +16,49 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Custom UI components
 import AnimatedInput from '@/components/ui/AnimatedInput';
 import Button from '@/components/ui/Button';
-
-type SellingType = 'auction' | 'posted' | 'fast_flip';
+import { useAddItemForm } from '@/hooks/useAddItemForm';
+import { showToast } from '@/lib/toast';
 
 export default function AddItemScreen() {
   const router = useRouter();
-  const [sellingType, setSellingType] = useState<SellingType>('auction');
   const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
-  const [postToProfile, setPostToProfile] = useState(true);
-  
-  // State for form data and dynamic issues list
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '', 
-    minIncrement: '',
-    targetBid: '',
-  });
-  const [issues, setIssues] = useState<string[]>(['']);
+  const form = useAddItemForm();
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+  const handlePost = async () => {
+    if (!form.formData.title || !form.formData.price) {
+      showToast("Required", "Please fill in title and price", "danger");
+      return;
     }
-  };
-
-  // Logic to handle multiple issues
-  const handleAddIssue = () => setIssues([...issues, '']);
-  const handleRemoveIssue = (index: number) => {
-    const newIssues = issues.filter((_, i) => i !== index);
-    setIssues(newIssues.length ? newIssues : ['']);
-  };
-  const handleUpdateIssue = (text: string, index: number) => {
-    const newIssues = [...issues];
-    newIssues[index] = text;
-    setIssues(newIssues);
-  };
-
-  const handlePost = () => {
     setLoading(true);
-    // Submit logic (formData + issues + image)
-    setTimeout(() => {
-      setLoading(false);
-      router.back();
-    }, 2000);
+    const success = await form.submitForm();
+    setLoading(false);
+    if (success) router.back();
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        {/* Header: Exact match to shop.tsx topNav */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.topNav}>
           <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>LIST NEW ITEM</Text>
-          <View style={styles.navActions}><View style={{ width: 32 }} /></View>
+          <View style={{ width: 32 }} />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Image Upload */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionLabel}>ITEM IMAGE</Text>
-            <TouchableOpacity style={styles.imageUploadCard} onPress={pickImage} activeOpacity={0.8}>
-              {image ? (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          
+          <Section label="ITEM IMAGE">
+            <TouchableOpacity style={styles.imageUploadCard} onPress={async () => {
+                const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+                if (!result.canceled) form.setImage(result.assets[0].uri);
+            }} activeOpacity={0.8}>
+              {form.image ? (
                 <View style={styles.imageContainer}>
-                  <Image source={{ uri: image }} style={styles.selectedImage} />
+                  <Image source={{ uri: form.image }} style={styles.selectedImage} />
                   <View style={styles.imageBadge}><Ionicons name="camera" size={16} color="#fff" /></View>
                 </View>
               ) : (
@@ -111,124 +68,109 @@ export default function AddItemScreen() {
                 </View>
               )}
             </TouchableOpacity>
-          </View>
+          </Section>
 
-          {/* Selling Type Selector */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionLabel}>SELECT SELLING TYPE</Text>
+          <Section label="SELECT SELLING TYPE">
             <View style={styles.typeGrid}>
               {['auction', 'posted', 'fast_flip'].map((id) => (
-                <TouchableOpacity
-                  key={id}
-                  style={[styles.typeCard, sellingType === id && styles.typeCardActive]}
-                  onPress={() => setSellingType(id as SellingType)}
+                <TouchableOpacity 
+                    key={id} 
+                    style={[styles.typeCard, form.sellingType === id && styles.typeCardActive]} 
+                    onPress={() => form.setSellingType(id as any)}
                 >
-                  <Ionicons 
-                    name={id === 'auction' ? 'hammer-outline' : id === 'posted' ? 'pricetag-outline' : 'flash-outline'} 
-                    size={20} 
-                    color={sellingType === id ? '#fff' : '#999'} 
-                  />
-                  <Text style={[styles.typeText, sellingType === id && styles.typeTextActive]}>
-                    {id === 'auction' ? 'Auction' : id === 'posted' ? 'Fixed Price' : 'Fast Flip'}
-                  </Text>
+                    <Ionicons 
+                      name={id === 'auction' ? 'hammer-outline' : id === 'posted' ? 'pricetag-outline' : 'flash-outline'} 
+                      size={20} color={form.sellingType === id ? '#fff' : '#999'} 
+                    />
+                    <Text style={[styles.typeText, form.sellingType === id && styles.typeTextActive]}>
+                        {id === 'auction' ? 'Auction' : id === 'posted' ? 'Fixed Price' : 'Fast Flip'}
+                    </Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </Section>
 
-          {/* Form Fields */}
+          {form.sellingType === 'auction' && (
+            <Section label="AUCTION DURATION">
+              <View style={styles.typeGrid}>
+                {['5', '10', '60'].map((mins) => (
+                  <TouchableOpacity 
+                    key={mins} 
+                    style={[styles.durationCard, form.duration === mins && styles.durationCardActive]}
+                    onPress={() => form.setDuration(mins)}
+                  >
+                    <Text style={[styles.typeText, form.duration === mins && styles.typeTextActive]}>{mins} MINS</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ marginTop: 12 }}>
+                <AnimatedInput 
+                    placeholder="CUSTOM DURATION (MINUTES)" 
+                    value={form.duration} 
+                    keyboardType="numeric"
+                    onChangeText={(t) => form.setDuration(t)}
+                />
+              </View>
+            </Section>
+          )}
+
           <View style={styles.form}>
-            <AnimatedInput
-              placeholder="ITEM TITLE"
-              value={formData.title}
-              onChangeText={(text) => setFormData({ ...formData, title: text })}
-            />
+            <AnimatedInput placeholder="ITEM TITLE" value={form.formData.title} onChangeText={(t) => form.setFormData({ ...form.formData, title: t })} />
 
             <View style={styles.pricingGrid}>
               <View style={{ flex: 1 }}>
-                <AnimatedInput
-                  placeholder={sellingType === 'auction' ? 'STARTING BID (₱)' : 'PRICE (₱)'}
-                  value={formData.price}
-                  keyboardType="numeric"
-                  onChangeText={(text) => setFormData({ ...formData, price: text })}
+                <AnimatedInput 
+                  placeholder={form.sellingType === 'auction' ? 'STARTING BID (₱)' : 'PRICE (₱)'} 
+                  value={form.formData.price} 
+                  keyboardType="numeric" 
+                  onChangeText={(t) => form.setFormData({ ...form.formData, price: t })} 
                 />
               </View>
-              {sellingType === 'auction' && (
+              {form.sellingType === 'auction' && (
                 <View style={{ flex: 1, marginLeft: 16 }}>
-                  <AnimatedInput
-                    placeholder="TARGET BID (₱)"
-                    value={formData.targetBid}
-                    keyboardType="numeric"
-                    onChangeText={(text) => setFormData({ ...formData, targetBid: text })}
-                  />
+                  <AnimatedInput placeholder="TARGET BID (₱)" value={form.formData.targetBid} keyboardType="numeric" onChangeText={(t) => form.setFormData({ ...form.formData, targetBid: t })} />
                 </View>
               )}
             </View>
 
-            {sellingType === 'auction' && (
-               <AnimatedInput
-                placeholder="MINIMUM BID INCREMENT (₱)"
-                value={formData.minIncrement}
-                keyboardType="numeric"
-                onChangeText={(text) => setFormData({ ...formData, minIncrement: text })}
-              />
+            {form.sellingType === 'auction' && (
+               <AnimatedInput placeholder="MINIMUM BID INCREMENT (₱)" value={form.formData.minIncrement} keyboardType="numeric" onChangeText={(t) => form.setFormData({ ...form.formData, minIncrement: t })} />
             )}
 
-            <AnimatedInput
-              placeholder="DESCRIPTION"
-              value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
-            />
+            <AnimatedInput placeholder="DESCRIPTION" value={form.formData.description} onChangeText={(t) => form.setFormData({ ...form.formData, description: t })} />
 
-            {/* Dynamic Issues Section */}
             <View style={styles.dynamicSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>ISSUES / DISCLOSURES</Text>
-                <TouchableOpacity onPress={handleAddIssue} style={styles.addBtn}>
-                  <Ionicons name="add-circle-outline" size={22} color="#111" />
-                </TouchableOpacity>
+                <TouchableOpacity onPress={form.handleAddIssue}><Ionicons name="add-circle-outline" size={22} color="#111" /></TouchableOpacity>
               </View>
-              
-              {issues.map((issue, index) => (
+              {form.issues.map((issue, index) => (
                 <View key={index} style={styles.issueRow}>
                   <View style={{ flex: 1 }}>
-                    <AnimatedInput
-                      placeholder={`ISSUE ${index + 1}`}
-                      value={issue}
-                      onChangeText={(text) => handleUpdateIssue(text, index)}
-                    />
+                    <AnimatedInput placeholder={`ISSUE ${index + 1}`} value={issue} onChangeText={(t) => form.handleUpdateIssue(t, index)} />
                   </View>
-                  {issues.length > 1 && (
-                    <TouchableOpacity onPress={() => handleRemoveIssue(index)} style={styles.removeBtn}>
-                      <Ionicons name="close-outline" size={20} color="#999" />
-                    </TouchableOpacity>
+                  {form.issues.length > 1 && (
+                    <TouchableOpacity onPress={() => form.handleRemoveIssue(index)} style={styles.removeBtn}><Ionicons name="close-outline" size={20} color="#999" /></TouchableOpacity>
                   )}
                 </View>
               ))}
             </View>
 
             <View style={styles.toggleContainer}>
-              <View style={styles.toggleTextContent}>
+              <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.toggleLabel}>POST TO PROFILE GRID</Text>
                 <Text style={styles.toggleSubtext}>Show this item on your public profile</Text>
               </View>
-              <Switch
-                trackColor={{ false: '#E2E2E2', true: '#111' }}
-                thumbColor="#fff"
-                ios_backgroundColor="#E2E2E2"
-                onValueChange={setPostToProfile}
-                value={postToProfile}
-              />
+              <Switch trackColor={{ false: '#E2E2E2', true: '#111' }} thumbColor="#fff" onValueChange={form.setPostToProfile} value={form.postToProfile} />
             </View>
 
-            <Button
-              label={sellingType === 'auction' ? 'POST AUCTION' : 'POST LISTING'}
-              variant="secondary"
-              size="lg"
-              loading={loading}
-              onPress={handlePost}
-              icon={<Ionicons name={sellingType === 'auction' ? "hammer" : "checkmark-circle"} size={20} color="#fff" />}
-              iconPosition="right"
+            <Button 
+              label={form.sellingType === 'auction' ? 'POST AUCTION' : 'POST LISTING'} 
+              variant="secondary" 
+              size="lg" 
+              loading={loading} 
+              onPress={handlePost} 
+              icon={<Ionicons name={form.sellingType === 'auction' ? "hammer" : "checkmark-circle"} size={20} color="#fff" />}
             />
           </View>
         </ScrollView>
@@ -237,27 +179,34 @@ export default function AddItemScreen() {
   );
 }
 
+const Section = ({ label, children }: any) => (
+  <View style={styles.sectionContainer}>
+    <Text style={styles.sectionLabel}>{label}</Text>
+    {children}
+  </View>
+);
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 16, color: '#111' },
   navBtn: { padding: 4 },
-  navActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   scrollContent: { padding: 24, paddingBottom: 60 },
   sectionContainer: { marginBottom: 32 },
   sectionLabel: { fontFamily: 'Inter_500Medium', fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1.2 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  addBtn: { padding: 4 },
-  imageUploadCard: { height: 180, backgroundColor: '#F9FAFB', borderRadius: 16, borderWidth: 1, borderColor: '#E2E2E2', borderStyle: 'dashed', overflow: 'hidden', marginTop: 12 },
-  imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  imageUploadCard: { height: 180, backgroundColor: '#F9FAFB', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#E2E2E2', justifyContent: 'center', alignItems: 'center', marginTop: 12 },
+  imagePlaceholder: { alignItems: 'center', gap: 8 },
   imagePlaceholderText: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#999' },
-  imageContainer: { flex: 1 },
+  imageContainer: { width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' },
   selectedImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   imageBadge: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 20 },
   typeGrid: { flexDirection: 'row', gap: 10, marginTop: 12 },
   typeCard: { flex: 1, backgroundColor: '#F9FAFB', paddingVertical: 16, borderRadius: 14, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#E2E2E2' },
   typeCardActive: { backgroundColor: '#000', borderColor: '#000' },
-  typeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#999' },
+  durationCard: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#F8F9FA', alignItems: 'center', borderWidth: 1, borderColor: '#E2E2E2' },
+  durationCardActive: { backgroundColor: '#111', borderColor: '#111' },
+  typeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#ADB5BD' },
   typeTextActive: { color: '#fff' },
   form: { gap: 24 },
   pricingGrid: { flexDirection: 'row', alignItems: 'flex-end' },
@@ -265,7 +214,6 @@ const styles = StyleSheet.create({
   issueRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10 },
   removeBtn: { paddingBottom: 8, paddingLeft: 10 },
   toggleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  toggleTextContent: { flex: 1, gap: 4 },
   toggleLabel: { fontFamily: 'Inter_500Medium', fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1.2 },
   toggleSubtext: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#666' },
 });
