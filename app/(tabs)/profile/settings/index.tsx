@@ -1,3 +1,4 @@
+import { useAccountInfo } from '@/hooks/useAccountInfo';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
@@ -5,11 +6,12 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
-  const handleBack = () => {
-    router.push('/profile');
-  };
+  const { canEdit, daysLeft } = useAccountInfo();
+
+  const handleBack = () => router.push('/profile');
 
   const goToAccountInfo = () => {
+    if (!canEdit) return;
     router.push('/profile/settings/account');
   };
 
@@ -23,16 +25,15 @@ export default function SettingsScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.content} 
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
           <SettingItem 
-            icon="person-outline" 
+            icon={canEdit ? "person-outline" : "lock-closed-outline"} 
             label="Account Information" 
-            onPress={goToAccountInfo} 
+            onPress={goToAccountInfo}
+            statusText={!canEdit ? `Locked (Available in ${daysLeft}d)` : undefined}
+            disabled={!canEdit}
           />
           <SettingItem icon="notifications-outline" label="Notifications" />
           <SettingItem icon="shield-checkmark-outline" label="Privacy & Security" />
@@ -49,19 +50,21 @@ export default function SettingsScreen() {
   );
 }
 
-function SettingItem({ icon, label, onPress }: { icon: any, label: string, onPress?: () => void }) {
+function SettingItem({ icon, label, onPress, statusText, disabled }: any) {
   return (
     <TouchableOpacity 
-      style={styles.item} 
+      style={[styles.item, disabled && { opacity: 0.6 }]} 
       activeOpacity={0.7} 
       onPress={onPress}
-      disabled={!onPress}
     >
       <View style={styles.itemLeft}>
         <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={20} color="#111" />
+          <Ionicons name={icon} size={20} color={disabled ? "#FF6B35" : "#111"} />
         </View>
-        <Text style={styles.itemText}>{label}</Text>
+        <View>
+          <Text style={styles.itemText}>{label}</Text>
+          {statusText && <Text style={styles.statusText}>{statusText}</Text>}
+        </View>
       </View>
       <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
     </TouchableOpacity>
@@ -69,60 +72,16 @@ function SettingItem({ icon, label, onPress }: { icon: any, label: string, onPre
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  headerTitle: {
-    fontFamily: 'Unbounded_700Bold',
-    fontSize: 16,
-    color: '#111',
-  },
-  backButton: {
-    padding: 4,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontFamily: 'Unbounded_700Bold',
-    fontSize: 12,
-    color: '#8E8E93',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconContainer: {
-    width: 32,
-    alignItems: 'flex-start',
-  },
-  itemText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    color: '#111',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
+  headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 16, color: '#111' },
+  backButton: { padding: 4 },
+  content: { paddingHorizontal: 16, paddingTop: 20 },
+  section: { marginBottom: 24 },
+  sectionLabel: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#8E8E93', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
+  itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconContainer: { width: 32, alignItems: 'flex-start' },
+  itemText: { fontFamily: 'Inter_400Regular', fontSize: 15, color: '#111' },
+  statusText: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#FF6B35', marginTop: 2 },
 });

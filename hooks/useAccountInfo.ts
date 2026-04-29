@@ -9,6 +9,8 @@ export function useAccountInfo() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [city, setCity] = useState('');
+  const [canEdit, setCanEdit] = useState(true);
+  const [daysLeft, setDaysLeft] = useState(0);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -36,19 +38,32 @@ export function useAccountInfo() {
           .eq('id', user.id)
           .single();
 
-        setFormData(prev => ({
-          ...prev,
-          email: user.email || '',
-          firstName: profile?.first_name || '',
-          middleName: profile?.middle_name || '',
-          lastName: profile?.last_name || '',
-          phone: profile?.phone || '',
-          zipCode: profile?.zip_code || '',
-          bio: profile?.bio || '',
-          avatarUrl: profile?.avatar_url || ''
-        }));
+        if (profile) {
+          // 7-Day Lock Logic
+          if (profile.updated_at) {
+            const lastUpdate = new Date(profile.updated_at);
+            const now = new Date();
+            const diffInDays = (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24);
+            
+            if (diffInDays < 7) {
+              setCanEdit(false);
+              setDaysLeft(Math.ceil(7 - diffInDays));
+            }
+          }
+
+          setFormData({
+            email: user.email || '',
+            firstName: profile.first_name || '',
+            middleName: profile.middle_name || '',
+            lastName: profile.last_name || '',
+            phone: profile.phone || '',
+            zipCode: profile.zip_code || '',
+            bio: profile.bio || '',
+            avatarUrl: profile.avatar_url || ''
+          });
+        }
       } catch (err) {
-        console.error("Init error:", err);
+        console.error(err);
       } finally {
         setInitialLoading(false);
       }
@@ -70,22 +85,19 @@ export function useAccountInfo() {
   }, [formData.zipCode]);
 
   const pickImage = async () => {
+    if (!canEdit) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], // SDK 55: MediaType is a plain string union, use array of strings
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
     });
-
-    if (!result.canceled) {
-      uploadImage(result.assets[0].uri);
-    }
+    if (!result.canceled) uploadImage(result.assets[0].uri);
   };
 
   const uploadImage = async (uri: string) => {
     try {
       setUploading(true);
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User session not found");
 
@@ -94,46 +106,32 @@ export function useAccountInfo() {
       const filePath = `${user.id}/${fileName}`;
       const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // SDK 55: import from 'expo-file-system/legacy' to use readAsStringAsync
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
-
-      // Decode base64 → Uint8Array
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const binaryString = atob(base64);
       const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, bytes, {
-          contentType,
-          upsert: true,
-        });
+        .upload(filePath, bytes, { contentType, upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
       setFormData(prev => ({ ...prev, avatarUrl: publicUrl }));
-      showToast("Success", "Profile photo uploaded", "success");
     } catch (error: any) {
-      console.error("Upload process error:", error);
-      showToast("Upload Error", error.message || "Could not upload image", "danger");
+      showToast("Upload Error", error.message, "danger");
     } finally {
       setUploading(false);
     }
   };
 
   const handleUpdate = async () => {
+    if (!canEdit) return;
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) throw new Error("Session expired.");
 
       const { error } = await supabase
         .from('profiles')
@@ -152,8 +150,10 @@ export function useAccountInfo() {
 
       if (error) throw error;
       showToast("Success", "Account updated", "success");
+      setCanEdit(false);
+      setDaysLeft(7);
     } catch (err: any) {
-      showToast("Error", err.message || "Failed to update", "danger");
+      showToast("Error", err.message, "danger");
     } finally {
       setLoading(false);
     }
@@ -161,6 +161,6 @@ export function useAccountInfo() {
 
   return {
     formData, setFormData, city, loading, initialLoading, uploading,
-    handleUpdate, isPhoneValid, isZipValid, pickImage
+    handleUpdate, isPhoneValid, isZipValid, pickImage, canEdit, daysLeft
   };
 }
