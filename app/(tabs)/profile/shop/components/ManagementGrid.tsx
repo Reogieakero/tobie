@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export const ManagementGrid = () => {
+  const router = useRouter();
   const [isListPressed, setIsListPressed] = useState(false);
 
   return (
@@ -15,6 +17,7 @@ export const ManagementGrid = () => {
         <TouchableOpacity
           onPressIn={() => setIsListPressed(true)}
           onPressOut={() => setIsListPressed(false)}
+          onPress={() => router.push('/profile/shop/addItem')}
           style={[styles.actionCard, isListPressed && { backgroundColor: '#111' }]}
         >
           <Ionicons name="add-circle" size={22} color={isListPressed ? '#fff' : '#111'} />

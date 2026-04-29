@@ -158,7 +158,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/components/RevenueCard" options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/LiveBidding" options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/ManagementGrid" options={{ href: null }} />
-
+      <Tabs.Screen name="profile/shop/addItem/index" options={{ href: null }} />
       
     </Tabs>
   );
