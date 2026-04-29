@@ -18,8 +18,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApplyState } from './components/ApplyState';
-import { ApprovedState } from './components/ApprovedState';
 import { PendingState } from './components/PendingState';
+import { MyShop } from './shop/my-shop';
 
 type AppStatus = 'none' | 'pending' | 'approved' | 'loading';
 
@@ -117,7 +117,7 @@ export default function ShopScreen() {
   const renderContent = () => {
     if (isLoading) return <LoadingOverlay />;
     if (status === 'pending') return <PendingState shopData={shopData} />;
-    if (status === 'approved') return <ApprovedState shopData={shopData} />;
+    if (status === 'approved') return <MyShop shopData={shopData} />;
     return (
       <ApplyState 
         isPressed={isPressed} 
