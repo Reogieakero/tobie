@@ -1,13 +1,14 @@
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useLoading } from '@/hooks/useLoading';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 const ONBOARDING_KEY = 'has_seen_onboarding';
 
 export default function Index() {
-  const [loading, setLoading] = useState(true);
+  const { isLoading, stopLoading } = useLoading(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function Index() {
 
       if (!hasSeenOnboarding) {
         setShowOnboarding(true);
-        setLoading(false);
+        stopLoading();
         return;
       }
 
@@ -38,7 +39,7 @@ export default function Index() {
     } catch (error) {
       router.replace('/(auth)/sign-in');
     } finally {
-      setLoading(false);
+      stopLoading();
     }
   };
 
@@ -48,36 +49,12 @@ export default function Index() {
         await import('@react-native-async-storage/async-storage')
       ).default;
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    } catch (e) {
-      // Fail silently to allow user entry
-    }
+    } catch (e) {}
     router.replace('/(auth)/sign-in');
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-      </View>
-    );
-  }
+  if (isLoading) return <LoadingOverlay message="INITIALIZING" />;
+  if (showOnboarding) return <OnboardingScreen onFinish={handleFinish} />;
 
-  if (showOnboarding) {
-    return <OnboardingScreen onFinish={handleFinish} />;
-  }
-
-  return (
-    <View style={styles.loading}>
-      <ActivityIndicator size="large" color="#FFFFFF" />
-    </View>
-  );
+  return <LoadingOverlay />;
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

@@ -1,5 +1,7 @@
 import AnimatedInput from '@/components/ui/AnimatedInput';
 import Button from '@/components/ui/Button';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useLoading } from '@/hooks/useLoading';
 import { supabase } from '@/lib/supabase';
 import { showToast } from '@/lib/toast';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
@@ -25,7 +27,7 @@ export default function SignInScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { isLoading, startLoading, stopLoading } = useLoading(false);
   const [errors, setErrors] = useState({ email: '', password: '' });
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -49,21 +51,26 @@ export default function SignInScreen() {
   async function handleSignIn() {
     setErrors({ email: '', password: '' });
     if (!email || !password) {
-      setErrors({ email: !email ? 'Email is required.' : '', password: !password ? 'Password is required.' : '' });
+      setErrors({ 
+        email: !email ? 'Email is required.' : '', 
+        password: !password ? 'Password is required.' : '' 
+      });
       return;
     }
-    setLoading(true);
+
+    startLoading();
+
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         showToast("Sign In Failed", error.message, "danger");
+        stopLoading();
       } else {
         router.replace('/(tabs)/home');
       }
     } catch (e) {
       showToast("Network Error", "Check your connection.", "danger");
-    } finally {
-      setLoading(false);
+      stopLoading();
     }
   }
 
@@ -73,6 +80,8 @@ export default function SignInScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
+      {isLoading && <LoadingOverlay message="SIGNING IN" />}
+
       <View style={styles.staticBackground} pointerEvents="none">
         <View style={styles.ring1} /><View style={styles.ring2} /><View style={styles.ring3} />
         <View style={styles.blob1} /><View style={styles.blob2} />
@@ -102,9 +111,24 @@ export default function SignInScreen() {
             <Text style={styles.subtitle}>Sign in to continue to your auctions.</Text>
             
             <View style={styles.form}>
-              <AnimatedInput placeholder="Email Address" value={email} onChangeText={setEmail} error={errors.email} />
-              <AnimatedInput placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} error={errors.password} />
-              <Button label={loading ? 'Signing in...' : 'Sign In'} onPress={handleSignIn} variant="secondary" disabled={loading} />
+              <AnimatedInput 
+                placeholder="Email Address" 
+                value={email} 
+                onChangeText={setEmail} 
+                error={errors.email} 
+              />
+              <AnimatedInput 
+                placeholder="Password" 
+                secureTextEntry 
+                value={password} 
+                onChangeText={setPassword} 
+                error={errors.password} 
+              />
+              <Button 
+                label="Sign In" 
+                onPress={handleSignIn} 
+                variant="secondary" 
+              />
               <Text style={styles.footerText}>
                 Don't have an account? <Text style={styles.linkText} onPress={() => router.push('/(auth)/sign-up')}>Sign Up</Text>
               </Text>

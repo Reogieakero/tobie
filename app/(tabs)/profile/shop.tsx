@@ -1,10 +1,11 @@
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useLoading } from '@/hooks/useLoading';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
     Animated,
     AppState,
     AppStateStatus,
@@ -28,10 +29,11 @@ export default function ShopScreen() {
   const [isPressed, setIsPressed] = useState(false);
   const holdAnim = useRef(new Animated.Value(0)).current;
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const { isLoading, startLoading, stopLoading } = useLoading(true);
 
   const fetchApplication = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setStatus('none'); return; }
+    if (!user) { setStatus('none'); stopLoading(); return; }
 
     const { data } = await supabase
       .from('shop_applications')
@@ -45,6 +47,7 @@ export default function ShopScreen() {
     } else {
       setStatus('none');
     }
+    stopLoading();
   }, []);
 
   useFocusEffect(
@@ -112,10 +115,17 @@ export default function ShopScreen() {
   });
 
   const renderContent = () => {
-    if (status === 'loading') return <View style={styles.centerFill}><ActivityIndicator color="#111" size="large" /></View>;
+    if (isLoading) return <LoadingOverlay />;
     if (status === 'pending') return <PendingState shopData={shopData} />;
     if (status === 'approved') return <ApprovedState shopData={shopData} />;
-    return <ApplyState isPressed={isPressed} handlePressIn={handlePressIn} handlePressOut={handlePressOut} fillHeight={fillHeight} />;
+    return (
+      <ApplyState 
+        isPressed={isPressed} 
+        handlePressIn={handlePressIn} 
+        handlePressOut={handlePressOut} 
+        fillHeight={fillHeight} 
+      />
+    );
   };
 
   return (
@@ -139,7 +149,6 @@ export default function ShopScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
-  centerFill: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: '#F0F0F0' },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 14, color: '#111' },
   backBtn: { padding: 4 },
