@@ -16,6 +16,7 @@ export function useAddItemForm() {
     price: '',
     minIncrement: '',
     targetBid: '',
+    quantity: '1', // Added quantity
   });
 
   const handleUpdateIssue = (text: string, index: number) => {
@@ -57,7 +58,7 @@ export function useAddItemForm() {
       let endTime = null;
       if (sellingType === 'auction' && duration) {
         const date = new Date();
-        date.setMinutes(date.getHours() * 0 + date.getMinutes() + parseInt(duration));
+        date.setMinutes(date.getMinutes() + parseInt(duration));
         endTime = date.toISOString();
       }
 
@@ -69,6 +70,7 @@ export function useAddItemForm() {
         price: parseFloat(formData.price),
         target_bid: formData.targetBid ? parseFloat(formData.targetBid) : null,
         min_increment: formData.minIncrement ? parseFloat(formData.minIncrement) : null,
+        quantity: parseInt(formData.quantity) || 1, // Added quantity mapping
         issues: issues.filter(i => i.trim() !== ''),
         image_url: imageUrl,
         posted_to_grid: postToProfile,

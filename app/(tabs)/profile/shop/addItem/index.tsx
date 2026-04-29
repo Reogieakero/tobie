@@ -34,7 +34,7 @@ export default function AddItemScreen() {
     setLoading(true);
     const success = await form.submitForm();
     setLoading(false);
-    if (success) router.back();
+    if (success) router.replace('/(tabs)/profile');
   };
 
   return (
@@ -42,7 +42,7 @@ export default function AddItemScreen() {
       <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.topNav}>
-          <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.navBtn} onPress={() => router.replace('/(tabs)/profile')}>
             <Ionicons name="arrow-back" size={24} color="#111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>LIST NEW ITEM</Text>
@@ -133,9 +133,21 @@ export default function AddItemScreen() {
               )}
             </View>
 
-            {form.sellingType === 'auction' && (
-               <AnimatedInput placeholder="MINIMUM BID INCREMENT (₱)" value={form.formData.minIncrement} keyboardType="numeric" onChangeText={(t) => form.setFormData({ ...form.formData, minIncrement: t })} />
-            )}
+            <View style={styles.pricingGrid}>
+              <View style={{ flex: 1 }}>
+                <AnimatedInput 
+                  placeholder="QUANTITY" 
+                  value={form.formData.quantity} 
+                  keyboardType="numeric" 
+                  onChangeText={(t) => form.setFormData({ ...form.formData, quantity: t })} 
+                />
+              </View>
+              {form.sellingType === 'auction' && (
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <AnimatedInput placeholder="MINIMUM BID INCREMENT (₱)" value={form.formData.minIncrement} keyboardType="numeric" onChangeText={(t) => form.setFormData({ ...form.formData, minIncrement: t })} />
+                </View>
+              )}
+            </View>
 
             <AnimatedInput placeholder="DESCRIPTION" value={form.formData.description} onChangeText={(t) => form.setFormData({ ...form.formData, description: t })} />
 
@@ -191,7 +203,7 @@ const styles = StyleSheet.create({
   topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 16, color: '#111' },
   navBtn: { padding: 4 },
-  scrollContent: { padding: 24, paddingBottom: 60 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 60 },
   sectionContainer: { marginBottom: 32 },
   sectionLabel: { fontFamily: 'Inter_500Medium', fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1.2 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
