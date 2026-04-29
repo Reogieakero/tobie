@@ -152,6 +152,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/components/PendingState"                 options={{ href: null }} />
       <Tabs.Screen name="profile/settings/index"                 options={{ href: null }} />
       <Tabs.Screen name="profile/settings/account/index"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/my-shop/index"                 options={{ href: null }} />
 
       
     </Tabs>

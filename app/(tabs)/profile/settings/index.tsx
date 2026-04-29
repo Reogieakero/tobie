@@ -15,6 +15,10 @@ export default function SettingsScreen() {
     router.push('/profile/settings/account');
   };
 
+  const goToMyShop = () => {
+    router.push('/profile/settings/my-shop'); 
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -34,6 +38,11 @@ export default function SettingsScreen() {
             onPress={goToAccountInfo}
             statusText={!canEdit ? `Locked (Available in ${daysLeft}d)` : undefined}
             disabled={!canEdit}
+          />
+          <SettingItem 
+            icon="cart-outline" 
+            label="My Shop" 
+            onPress={goToMyShop} 
           />
           <SettingItem icon="notifications-outline" label="Notifications" />
           <SettingItem icon="shield-checkmark-outline" label="Privacy & Security" />
