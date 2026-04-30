@@ -7,8 +7,6 @@ import { Platform } from 'react-native';
 
 
 function useGlobalShopApprovalListener() {
-  // Track the last known status so we only toast on the transition TO approved,
-  // not on every re-render or initial load when already approved.
   const lastKnownStatus = useRef<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -19,7 +17,6 @@ function useGlobalShopApprovalListener() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !mounted) return;
 
-      // Seed the last known status so we don't toast if they were already approved
       const { data } = await supabase
         .from('shop_applications')
         .select('status')
@@ -33,7 +30,7 @@ function useGlobalShopApprovalListener() {
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',         // Only care about updates (admin approves = UPDATE)
+            event: 'UPDATE',
             schema: 'public',
             table: 'shop_applications',
             filter: `user_id=eq.${user.id}`,
@@ -42,7 +39,6 @@ function useGlobalShopApprovalListener() {
             const newStatus = (payload.new as any)?.status;
             const shopName  = (payload.new as any)?.shop_name;
 
-            // Only fire when transitioning INTO 'approved'
             if (newStatus === 'approved' && lastKnownStatus.current !== 'approved') {
               showToast(
                 '🎉 Shop Approved!',
@@ -72,7 +68,6 @@ function useGlobalShopApprovalListener() {
 }
 
 export default function TabsLayout() {
-  // 👇 Activates the global listener for the entire tab session
   useGlobalShopApprovalListener();
 
   return (
@@ -139,7 +134,7 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Hide profile sub-components from the tab bar */}
+      {/* Hide profile sub-screens from tab bar */}
       <Tabs.Screen name="profile/components/ProfileHeader"   options={{ href: null }} />
       <Tabs.Screen name="profile/components/ProfileTabs"     options={{ href: null }} />
       <Tabs.Screen name="profile/components/ProfileGrid"     options={{ href: null }} />
@@ -147,25 +142,35 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/components/ProfileListings" options={{ href: null }} />
       <Tabs.Screen name="profile/shop"                       options={{ href: null }} />
       <Tabs.Screen name="profile/shop/apply"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/components/ApplyState"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/my-shop"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/components/PendingState"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/settings/index"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/settings/account/index"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/settings/my-shop/index"                 options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/components/ShopHeader" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/components/StatsGrid" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/components/RevenueCard" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/components/LiveBidding" options={{ href: null }} />
+      <Tabs.Screen name="profile/components/ApplyState"      options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/my-shop"               options={{ href: null }} />
+      <Tabs.Screen name="profile/components/PendingState"    options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/index"             options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/account/index"     options={{ href: null }} />
+      <Tabs.Screen name="profile/settings/my-shop/index"     options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ShopHeader"    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/StatsGrid"     options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/RevenueCard"   options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/LiveBidding"   options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/ManagementGrid" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/index" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/shop-products" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/components/ImageUpload" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/index"         options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/shop-products"         options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/ImageUpload"        options={{ href: null }} />
       <Tabs.Screen name="profile/shop/addItem/components/SellingTypeSelector" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/components/AuctionScheduler" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/components/PricingFields" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/components/IssuesSection" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/addItem/components/ValidatedField" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/AuctionScheduler"   options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/PricingFields"      options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/IssuesSection"      options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/ValidatedField"     options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/FilterTabs"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ModalScheduledRow"           options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/AuctionTimer"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ModalCountdown"                options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/DeleteConfirmOverlay"           options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ProductModal"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ProductsNavBar"                 options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/GridItem"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ScheduledBar"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/ListItem"                    options={{ href: null }} />
     </Tabs>
   );
 }

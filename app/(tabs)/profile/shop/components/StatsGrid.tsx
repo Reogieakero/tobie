@@ -1,30 +1,50 @@
+import { useUserStats } from '@/hooks/useShopStats';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-
-const STATS = [
-  { label: 'Auction List', value: '08', icon: 'hammer-outline' },
-  { label: 'Active', value: '12', icon: 'flash-outline' },
-  { label: 'Sold', value: '84', icon: 'checkmark-circle-outline' },
-];
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 export const StatsGrid = () => {
+  const { counts, loading } = useUserStats();
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="small" color="#FF6B35" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.proStatsGrid}>
-      {STATS.map((stat, i) => (
-        <View key={i} style={[styles.proStatItem, i !== 0 && styles.statDivider]}>
-          <View style={styles.proStatHeader}>
-            <Ionicons name={stat.icon as any} size={14} color="#111" />
-            <Text style={styles.proStatValue}>{stat.value}</Text>
-          </View>
-          <Text style={styles.proStatLabel}>{stat.label}</Text>
+      <View style={styles.proStatItem}>
+        <View style={styles.proStatHeader}>
+          <Ionicons name="hammer-outline" size={14} color="#111" />
+          <Text style={styles.proStatValue}>{counts.auction}</Text>
         </View>
-      ))}
+        <Text style={styles.proStatLabel}>Auction List</Text>
+      </View>
+
+      <View style={[styles.proStatItem, styles.statDivider]}>
+        <View style={styles.proStatHeader}>
+          <Ionicons name="flash-outline" size={14} color="#111" />
+          <Text style={styles.proStatValue}>{counts.active}</Text>
+        </View>
+        <Text style={styles.proStatLabel}>Active</Text>
+      </View>
+
+      <View style={[styles.proStatItem, styles.statDivider]}>
+        <View style={styles.proStatHeader}>
+          <Ionicons name="checkmark-circle-outline" size={14} color="#111" />
+          <Text style={styles.proStatValue}>{counts.sold}</Text>
+        </View>
+        <Text style={styles.proStatLabel}>Sold</Text>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  loaderContainer: { paddingVertical: 20, alignItems: 'center' },
   proStatsGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, marginBottom: 24 },
   proStatItem: { alignItems: 'center', flex: 1 },
   statDivider: { borderLeftWidth: 1, borderColor: '#F3F4F6' },

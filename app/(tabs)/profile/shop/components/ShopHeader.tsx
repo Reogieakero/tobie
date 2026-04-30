@@ -16,7 +16,6 @@ export const ShopHeader = ({ shopName, category, customLink, userId }: ShopHeade
   const router = useRouter(); // Initialize router
 
   const handlePressProducts = () => {
-    // Redirects to shop-products with the userId as a parameter
     router.push({
       pathname: '/(tabs)/profile/shop/shop-products',
       params: { userId }
