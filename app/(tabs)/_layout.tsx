@@ -171,6 +171,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/components/GridItem"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/ScheduledBar"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/ListItem"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/live-auctions"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/AuctionCard"                    options={{ href: null }} />
     </Tabs>
   );
 }

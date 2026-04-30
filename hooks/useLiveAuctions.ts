@@ -10,11 +10,10 @@ export function useLiveAuctions() {
       setLoading(true);
       const { data, error } = await supabase
         .from('items')
-        .select('id, title, end_time, price, target_bid')
+        .select('id, title, end_time, price, target_bid, display_order, user_id')
         .eq('selling_type', 'auction')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('display_order', { ascending: true });
 
       if (error) throw error;
       setAuctions(data || []);

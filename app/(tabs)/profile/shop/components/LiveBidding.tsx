@@ -1,9 +1,9 @@
 import { useLiveAuctions } from '@/hooks/useLiveAuctions';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// Helper to calculate time without a full data refresh
 const getTimeRemaining = (endTime: string) => {
   const total = Date.parse(endTime) - Date.now();
   if (total <= 0) return 'Ended';
@@ -18,7 +18,6 @@ const getTimeRemaining = (endTime: string) => {
   return `${minutes}m ${seconds}s`;
 };
 
-// Sub-component to handle the ticking logic
 const TimerTicker = ({ endTime }: { endTime: string }) => {
   const [timeLeft, setTimeLeft] = useState(getTimeRemaining(endTime));
 
@@ -33,6 +32,7 @@ const TimerTicker = ({ endTime }: { endTime: string }) => {
 };
 
 export const LiveBidding = () => {
+  const router = useRouter();
   const { auctions, loading } = useLiveAuctions();
 
   if (loading) {
@@ -47,7 +47,7 @@ export const LiveBidding = () => {
     <>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Live Bidding</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile/shop/live-auctions')}>
           <Text style={styles.seeAllText}>See all</Text>
         </TouchableOpacity>
       </View>
