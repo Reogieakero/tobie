@@ -18,12 +18,17 @@ const getTimeRemaining = (endTime: string) => {
   return `${minutes}m ${seconds}s`;
 };
 
-const TimerTicker = ({ endTime }: { endTime: string }) => {
+const TimerTicker = ({ endTime, onEnd }: { endTime: string; onEnd: () => void }) => {
   const [timeLeft, setTimeLeft] = useState(getTimeRemaining(endTime));
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeLeft(getTimeRemaining(endTime));
+      const remaining = getTimeRemaining(endTime);
+      setTimeLeft(remaining);
+      if (remaining === 'Ended') {
+        onEnd();
+        clearInterval(interval);
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [endTime]);
@@ -33,9 +38,20 @@ const TimerTicker = ({ endTime }: { endTime: string }) => {
 
 export const LiveBidding = () => {
   const router = useRouter();
-  const { auctions, loading } = useLiveAuctions();
+  const { auctions, loading, refresh } = useLiveAuctions();
+  const [displayAuctions, setDisplayAuctions] = useState<any[]>([]);
 
-  if (loading) {
+  useEffect(() => {
+    const liveOnly = auctions.filter(item => Date.parse(item.end_time) > Date.now());
+    setDisplayAuctions(liveOnly);
+  }, [auctions]);
+
+  const handleTimerEnd = () => {
+    const liveOnly = auctions.filter(item => Date.parse(item.end_time) > Date.now());
+    setDisplayAuctions(liveOnly);
+  };
+
+  if (loading && auctions.length === 0) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="small" color="#FF6B35" />
@@ -53,7 +69,7 @@ export const LiveBidding = () => {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.auctionList}>
-        {auctions.map((item) => (
+        {displayAuctions.map((item) => (
           <TouchableOpacity key={item.id} style={styles.auctionCard}>
             <View style={styles.cardHeaderRow}>
               <View style={styles.liveTag}>
@@ -66,20 +82,20 @@ export const LiveBidding = () => {
             </View>
 
             <Text style={styles.auctionTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.currentBidLabel}>Current Bid</Text>
-            <Text style={styles.bidValue}>₱0</Text> 
+            <Text style={styles.currentBidLabel}>Starting Price</Text>
+            <Text style={styles.bidValue}>₱{Number(item.price || 0).toLocaleString()}</Text> 
             
             <View style={styles.timerRow}>
               <Ionicons name="time-outline" size={10} color="#EF4444" />
               {item.end_time ? (
-                <TimerTicker endTime={item.end_time} />
+                <TimerTicker endTime={item.end_time} onEnd={handleTimerEnd} />
               ) : (
                 <Text style={styles.timerText}>No Limit</Text>
               )}
             </View>
           </TouchableOpacity>
         ))}
-        {auctions.length === 0 && (
+        {displayAuctions.length === 0 && !loading && (
           <Text style={styles.emptyText}>No live auctions found.</Text>
         )}
       </ScrollView>

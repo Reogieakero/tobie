@@ -27,7 +27,7 @@ export function useLiveAuctions() {
   useEffect(() => {
     fetchLiveAuctions();
 
-    const channelId = `auction-live-${Math.random().toString(36).slice(2, 9)}`;
+    const channelId = `auction-feed-${Math.random().toString(36).slice(2, 9)}`;
     const channel = supabase
       .channel(channelId)
       .on(
