@@ -26,7 +26,6 @@ export function useAddItemForm(itemId?: string) {
     return d;
   });
   const [scheduledEndDate, setScheduledEndDate] = useState(new Date(Date.now() + 7200000));
-
   const [formData, setFormData] = useState(initialFormData);
 
   const resetForm = () => {
@@ -172,8 +171,8 @@ export function useAddItemForm(itemId?: string) {
         description: formData.description,
         selling_type: sellingType,
         price: sPrice,
-        target_bid: formData.target_bid ? parseFloat(formData.target_bid) : null,
-        min_increment: formData.min_increment ? parseFloat(formData.min_increment) : null,
+        target_bid: formData.targetBid ? parseFloat(formData.targetBid) : null,
+        min_increment: formData.minIncrement ? parseFloat(formData.minIncrement) : null,
         quantity: parseInt(formData.quantity) || 1,
         issues: issues.filter((i) => i.trim() !== ''),
         image_url: imageUrl,

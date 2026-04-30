@@ -18,7 +18,7 @@ export function useLiveAuctions() {
       if (error) throw error;
       setAuctions(data || []);
     } catch (error) {
-      console.error('Error fetching live auctions:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -26,6 +26,27 @@ export function useLiveAuctions() {
 
   useEffect(() => {
     fetchLiveAuctions();
+
+    const channelId = `auction-live-${Math.random().toString(36).slice(2, 9)}`;
+    const channel = supabase
+      .channel(channelId)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items',
+          filter: "selling_type=eq.auction"
+        },
+        () => {
+          fetchLiveAuctions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return { auctions, loading, refresh: fetchLiveAuctions };

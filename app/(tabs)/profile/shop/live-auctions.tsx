@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { LogBox, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LogBox, SafeAreaView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AuctionCard from './components/AuctionCard';
@@ -27,14 +27,7 @@ export default function LiveAuctionsScreen() {
       id: item.id,
       display_order: index,
     }));
-
-    const { error } = await supabase.rpc('update_items_order', { 
-      payload: payload 
-    });
-
-    if (error) {
-      console.error('Error saving order via RPC:', error.message);
-    }
+    await supabase.rpc('update_items_order', { payload });
   };
 
   const handleDragEnd = ({ data: newData }: { data: any[] }) => {
@@ -46,45 +39,54 @@ export default function LiveAuctionsScreen() {
     }
   };
 
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<any>) => {
-    return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          activeOpacity={1}
-          onLongPress={drag}
-          disabled={isActive}
-          style={[
-            styles.rowItem,
-            { backgroundColor: isActive ? 'transparent' : '#FFF' }
-          ]}
-        >
-          <AuctionCard item={item} isDragging={isActive} />
-        </TouchableOpacity>
-      </ScaleDecorator>
-    );
-  };
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<any>) => (
+    <ScaleDecorator>
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={drag}
+        disabled={isActive}
+        style={[styles.rowItem, { backgroundColor: isActive ? 'transparent' : '#FFF' }]}
+      >
+        <AuctionCard item={item} isDragging={isActive} />
+      </TouchableOpacity>
+    </ScaleDecorator>
+  );
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <Stack.Screen options={{ headerShown: false }} />
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#FFF' }}>
+      <Stack.Screen 
+        options={{ 
+          headerShown: true,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFF' },
+          headerTitle: () => (
+            <Text style={styles.headerTitle}>LIVE BIDDING</Text>
+          ),
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={styles.navBtn}
+            >
+              <Ionicons name="arrow-back" size={24} color="#111" />
+            </TouchableOpacity>
+          ),
+          headerTitleAlign: 'center',
+          headerLeftContainerStyle: {
+            paddingLeft: 16
+          }
+        }} 
+      />
 
-        <View style={styles.headerContainer}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>LIVE BIDDING</Text>
-          <View style={{ width: 40 }} /> 
-        </View>
-
+      <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
         <DraggableFlatList
           data={data}
           onDragEnd={handleDragEnd}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `auction-${item.id}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           onRefresh={refresh}
           refreshing={loading}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             !loading && <Text style={styles.emptyText}>No active auctions found.</Text>
           }
@@ -96,20 +98,15 @@ export default function LiveAuctionsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  headerContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 16, 
-    paddingVertical: 12,
-  },
   headerTitle: { 
     fontFamily: 'Unbounded_700Bold', 
     fontSize: 13, 
-    color: '#111' 
+    color: '#111',
+    letterSpacing: 1
   },
   listContent: { 
     paddingHorizontal: 16, 
+    paddingTop: 10,
     paddingBottom: 32 
   },
   rowItem: {
@@ -127,5 +124,8 @@ const styles = StyleSheet.create({
     color: '#888', 
     marginTop: 40 
   },
-  navBtn: { width: 40 }
+  navBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });
