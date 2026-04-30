@@ -184,7 +184,7 @@ export default function ShopProductsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topNav}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.navBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')} style={styles.navBtn}>
           <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{shopData?.full_name?.toUpperCase() || 'MY SHOP'}</Text>
