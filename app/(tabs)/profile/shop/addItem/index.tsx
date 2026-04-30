@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -27,8 +27,10 @@ import SellingTypeSelector from './components/SellingTypeSelector';
 
 export default function AddItemScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const isEditing = !!id;
   const [loading, setLoading] = useState(false);
-  const form = useAddItemForm();
+  const form = useAddItemForm(id);
 
   const handlePost = async () => {
     if (!form.formData.title || !form.formData.price) {
@@ -38,39 +40,30 @@ export default function AddItemScreen() {
     setLoading(true);
     const success = await form.submitForm();
     setLoading(false);
-    if (success) router.replace('/(tabs)/profile');
+    if (success) router.replace('/(tabs)/profile/shop');
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-
-        {/* Header */}
         <View style={styles.topNav}>
-          <TouchableOpacity style={styles.navBtn} onPress={() => router.replace('/(tabs)/profile/shop')}>
+          <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#111" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>LIST NEW ITEM</Text>
+          <Text style={styles.headerTitle}>{isEditing ? 'EDIT ITEM' : 'LIST NEW ITEM'}</Text>
           <View style={{ width: 32 }} />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Image */}
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Section label="ITEM IMAGE">
             <ImageUpload image={form.image} onImageSelected={form.setImage} />
           </Section>
 
-          {/* Selling Type */}
           <Section label="SELECT SELLING TYPE">
             <SellingTypeSelector value={form.sellingType} onChange={form.setSellingType} />
           </Section>
 
-          {/* Auction-only: Schedule */}
           {form.sellingType === 'auction' && (
             <AuctionScheduler
               startTimeType={form.startTimeType}
@@ -86,14 +79,12 @@ export default function AddItemScreen() {
             />
           )}
 
-          {/* Form Fields */}
           <View style={styles.form}>
             <AnimatedInput
               placeholder="ITEM TITLE"
               value={form.formData.title}
               onChangeText={(t) => form.setFormData({ ...form.formData, title: t })}
             />
-
             <PricingFields
               sellingType={form.sellingType}
               formData={form.formData}
@@ -101,13 +92,11 @@ export default function AddItemScreen() {
               errors={form.errors}
               onChange={(patch) => form.setFormData({ ...form.formData, ...patch })}
             />
-
             <AnimatedInput
               placeholder="DESCRIPTION"
               value={form.formData.description}
               onChangeText={(t) => form.setFormData({ ...form.formData, description: t })}
             />
-
             <IssuesSection
               issues={form.issues}
               onAdd={form.handleAddIssue}
@@ -115,7 +104,6 @@ export default function AddItemScreen() {
               onRemove={form.handleRemoveIssue}
             />
 
-            {/* Post to Profile Toggle */}
             <View style={styles.toggleContainer}>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.toggleLabel}>POST TO PROFILE GRID</Text>
@@ -130,18 +118,12 @@ export default function AddItemScreen() {
             </View>
 
             <Button
-              label={form.sellingType === 'auction' ? 'POST AUCTION' : 'POST LISTING'}
+              label={isEditing ? 'UPDATE ITEM' : (form.sellingType === 'auction' ? 'POST AUCTION' : 'POST LISTING')}
               variant="secondary"
               size="lg"
               loading={loading}
               onPress={handlePost}
-              icon={
-                <Ionicons
-                  name={form.sellingType === 'auction' ? 'hammer' : 'checkmark-circle'}
-                  size={20}
-                  color="#fff"
-                />
-              }
+              icon={<Ionicons name={isEditing ? 'save' : 'checkmark-circle'} size={20} color="#fff" />}
             />
           </View>
         </ScrollView>
@@ -161,39 +143,14 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
-  topNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
+  topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 16, color: '#111' },
   navBtn: { padding: 4 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 60 },
   sectionContainer: { marginBottom: 32 },
-  sectionLabel: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 10,
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
+  sectionLabel: { fontFamily: 'Inter_500Medium', fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1.2 },
   form: { gap: 24 },
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  toggleLabel: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 10,
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
+  toggleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  toggleLabel: { fontFamily: 'Inter_500Medium', fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1.2 },
   toggleSubtext: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#666' },
 });

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
     FlatList,
     Image,
@@ -184,6 +185,7 @@ export default function ShopProductsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selected, setSelected] = useState<any | null>(null);
   const [tick, setTick] = useState(0);
+  const [managingId, setManagingId] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -242,6 +244,25 @@ export default function ShopProductsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async (itemId: string) => {
+    Alert.alert(
+      "Delete Product",
+      "Are you sure you want to remove this listing?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            const { error } = await supabase.from('items').delete().eq('id', itemId);
+            if (error) Alert.alert("Error", error.message);
+            setManagingId(null);
+          } 
+        }
+      ]
+    );
   };
 
   const isActuallyScheduled = (item: any) => {
@@ -337,7 +358,7 @@ export default function ShopProductsScreen() {
         keyExtractor={(item) => item.id}
         numColumns={3}
         showsVerticalScrollIndicator={false}
-        extraData={tick}
+        extraData={[tick, managingId]}
         contentContainerStyle={filteredItems.length === 0 ? styles.emptyFlex : undefined}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -360,6 +381,7 @@ export default function ShopProductsScreen() {
           const ended  = isEnded(item);
           const live   = isLive(item);
           const noTimer = hasNoTimer(item);
+          const isManaging = managingId === item.id;
 
           return (
             <TouchableOpacity
@@ -370,7 +392,11 @@ export default function ShopProductsScreen() {
                 scheduled && styles.cellScheduled,
               ]}
               activeOpacity={0.85}
-              onPress={() => setSelected(item)}
+              onPress={() => {
+                if (isManaging) setManagingId(null);
+                else setSelected(item);
+              }}
+              onLongPress={() => setManagingId(item.id)}
             >
               <Image source={{ uri: item.image_url }} style={styles.cellImage} />
 
@@ -417,6 +443,34 @@ export default function ShopProductsScreen() {
                   </Text>
                 )}
               </View>
+
+              {isManaging && (
+                <View style={styles.adminOverlay}>
+                  {!ended && (
+                    <TouchableOpacity 
+                        style={styles.adminBtn} 
+                        onPress={() => {
+                            setManagingId(null);
+                            router.push({
+                            pathname: '/(tabs)/profile/shop/addItem',
+                            params: { id: item.id }
+                            });
+                        }}
+                    >
+                        <Ionicons name="create" size={22} color="#fff" />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    style={[styles.adminBtn, styles.adminBtnDelete]} 
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Ionicons name="trash" size={22} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.adminClose} onPress={() => setManagingId(null)}>
+                    <Ionicons name="close-circle" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </TouchableOpacity>
           );
         }}
@@ -571,6 +625,10 @@ const styles = StyleSheet.create({
   cellOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 6, paddingVertical: 5 },
   cellPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 11, color: '#fff' },
   cellMeta: { fontFamily: 'Inter_400Regular', fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
+  adminOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15 },
+  adminBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center' },
+  adminBtnDelete: { backgroundColor: '#EF4444' },
+  adminClose: { position: 'absolute', top: 5, right: 5 },
   emptyFlex: { flex: 1 },
   emptyContainer: { alignItems: 'center', marginTop: 80, gap: 12 },
   emptyText: { textAlign: 'center', color: '#999', fontFamily: 'Inter_400Regular', fontSize: 14 },
