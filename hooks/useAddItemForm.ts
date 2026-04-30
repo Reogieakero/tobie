@@ -3,6 +3,15 @@ import { showToast } from '@/lib/toast';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
+const initialFormData = {
+  title: '',
+  description: '',
+  price: '',
+  minIncrement: '',
+  targetBid: '',
+  quantity: '1',
+};
+
 export function useAddItemForm(itemId?: string) {
   const [sellingType, setSellingType] = useState<'auction' | 'posted' | 'fast_flip'>('auction');
   const [image, setImage] = useState<string | null>(null);
@@ -18,18 +27,28 @@ export function useAddItemForm(itemId?: string) {
   });
   const [scheduledEndDate, setScheduledEndDate] = useState(new Date(Date.now() + 7200000));
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    minIncrement: '',
-    targetBid: '',
-    quantity: '1',
-  });
+  const [formData, setFormData] = useState(initialFormData);
+
+  const resetForm = () => {
+    setSellingType('auction');
+    setImage(null);
+    setPostToProfile(true);
+    setIssues(['']);
+    setFormData(initialFormData);
+    setDuration('60');
+    setStartTimeType('now');
+    setEndTimeType('duration');
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 5);
+    setScheduledStartDate(d);
+    setScheduledEndDate(new Date(Date.now() + 7200000));
+  };
 
   useEffect(() => {
     if (itemId) {
       loadItemData();
+    } else {
+      resetForm();
     }
   }, [itemId]);
 
@@ -153,8 +172,8 @@ export function useAddItemForm(itemId?: string) {
         description: formData.description,
         selling_type: sellingType,
         price: sPrice,
-        target_bid: formData.targetBid ? parseFloat(formData.targetBid) : null,
-        min_increment: formData.minIncrement ? parseFloat(formData.minIncrement) : null,
+        target_bid: formData.target_bid ? parseFloat(formData.target_bid) : null,
+        min_increment: formData.min_increment ? parseFloat(formData.min_increment) : null,
         quantity: parseInt(formData.quantity) || 1,
         issues: issues.filter((i) => i.trim() !== ''),
         image_url: imageUrl,

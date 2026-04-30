@@ -19,7 +19,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
-const GRID_ITEM_SIZE = (width - 3) / 3;
+
+const GUTTER = 16;
+const COLUMN_COUNT = 3;
+const GRID_ITEM_SIZE = (width - (GUTTER * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
 
 type FilterType = 'all' | 'scheduled' | 'auction' | 'posted' | 'fast_flip';
 type ViewLayout = 'grid' | 'list';
@@ -186,8 +189,11 @@ export default function ShopProductsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selected, setSelected] = useState<any | null>(null);
   const [tick, setTick] = useState(0);
-  const [managingId, setManagingId] = useState<string | null>(null);
   const [layout, setLayout] = useState<ViewLayout>('grid');
+  
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -248,23 +254,28 @@ export default function ShopProductsScreen() {
     }
   };
 
-  const handleDelete = async (itemId: string) => {
-    Alert.alert(
-      "Delete Product",
-      "Are you sure you want to remove this listing?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: async () => {
-            const { error } = await supabase.from('items').delete().eq('id', itemId);
-            if (error) Alert.alert("Error", error.message);
-            setManagingId(null);
-          } 
-        }
-      ]
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const enterSelectionMode = (id: string) => {
+    setSelectionMode(true);
+    setSelectedIds([id]);
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const { error } = await supabase.from('items').delete().in('id', selectedIds);
+    if (error) Alert.alert("Error", error.message);
+    setShowDeleteConfirm(false);
+    exitSelectionMode();
   };
 
   const isActuallyScheduled = (item: any) => {
@@ -275,6 +286,10 @@ export default function ShopProductsScreen() {
     if (item?.status === 'active') return true;
     return item?.status === 'scheduled' && getStartsInMs(item.start_time) <= 0;
   };
+
+  const isLive      = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) > 0 && isActuallyLive(item);
+  const isEnded     = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) <= 0 && isActuallyLive(item);
+  const hasNoTimer  = (item: any) => item?.selling_type === 'auction' && !item?.end_time && isActuallyLive(item);
 
   const filteredItems = useMemo(() => {
     if (activeFilter === 'all') return items;
@@ -290,10 +305,6 @@ export default function ShopProductsScreen() {
     fast_flip: items.filter((i) => i.selling_type === 'fast_flip'  && isActuallyLive(i)).length,
   }), [items, tick]);
 
-  const isLive      = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) > 0 && isActuallyLive(item);
-  const isEnded     = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) <= 0 && isActuallyLive(item);
-  const hasNoTimer  = (item: any) => item?.selling_type === 'auction' && !item?.end_time && isActuallyLive(item);
-
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -305,67 +316,91 @@ export default function ShopProductsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topNav}>
-        <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')} style={styles.navBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{shopData?.full_name?.toUpperCase() || 'MY SHOP'}</Text>
-        <TouchableOpacity 
-          style={styles.navBtn}
-          onPress={() => setLayout(layout === 'grid' ? 'list' : 'grid')}
-        >
-          <Ionicons name={layout === 'grid' ? 'list-outline' : 'grid-outline'} size={24} color="#111" />
-        </TouchableOpacity>
+        {selectionMode ? (
+          <TouchableOpacity onPress={exitSelectionMode} style={styles.navBtn}>
+            <Ionicons name="close" size={24} color="#111" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')} style={styles.navBtn}>
+            <Ionicons name="arrow-back" size={24} color="#111" />
+          </TouchableOpacity>
+        )}
+        
+        <Text style={styles.headerTitle}>
+          {selectionMode ? `${selectedIds.length} SELECTED` : (shopData?.full_name?.toUpperCase() || 'MY SHOP')}
+        </Text>
+
+        <View style={styles.topNavRight}>
+          {selectionMode ? (
+            <TouchableOpacity onPress={() => setShowDeleteConfirm(true)} disabled={selectedIds.length === 0}>
+              <Ionicons name="trash-outline" size={22} color={selectedIds.length === 0 ? "#ccc" : "#EF4444"} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.navBtn}
+              onPress={() => setLayout(layout === 'grid' ? 'list' : 'grid')}
+            >
+              <Ionicons name={layout === 'grid' ? 'list-outline' : 'grid-outline'} size={24} color="#111" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
-          {FILTERS.map((f) => {
-            const active = activeFilter === f.id;
-            const count = counts[f.id];
-            return (
-              <TouchableOpacity
-                key={f.id}
-                style={[
-                  styles.filterTab,
-                  active && styles.filterTabActive,
-                ]}
-                onPress={() => setActiveFilter(f.id)}
-                activeOpacity={0.75}
-              >
-                <Ionicons name={f.icon as any} size={14} color={active ? '#fff' : '#111'} />
-                <Text style={[
-                  styles.filterLabel,
-                  active && styles.filterLabelActive,
-                ]}>
-                  {f.label}
-                </Text>
-                {count > 0 && (
-                  <View style={[
-                    styles.countBadge,
-                    active && styles.countBadgeActive,
+      {!selectionMode && (
+        <View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+            {FILTERS.map((f) => {
+              const active = activeFilter === f.id;
+              const count = counts[f.id];
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[
+                    styles.filterTab,
+                    active && styles.filterTabActive,
+                  ]}
+                  onPress={() => setActiveFilter(f.id)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name={f.icon as any} size={14} color={active ? '#fff' : '#111'} />
+                  <Text style={[
+                    styles.filterLabel,
+                    active && styles.filterLabelActive,
                   ]}>
-                    <Text style={[
-                      styles.countText,
-                      active && styles.countTextActive,
+                    {f.label}
+                  </Text>
+                  {count > 0 && (
+                    <View style={[
+                      styles.countBadge,
+                      active && styles.countBadgeActive,
                     ]}>
-                      {count}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                      <Text style={[
+                        styles.countText,
+                        active && styles.countTextActive,
+                      ]}>
+                        {count}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       <FlatList
         key={layout}
         data={filteredItems}
         keyExtractor={(item) => item.id}
         numColumns={layout === 'grid' ? 3 : 1}
+        columnWrapperStyle={layout === 'grid' ? { gap: GUTTER } : undefined}
         showsVerticalScrollIndicator={false}
-        extraData={[tick, managingId, layout]}
-        contentContainerStyle={filteredItems.length === 0 ? styles.emptyFlex : (layout === 'list' ? { paddingHorizontal: 16 } : undefined)}
+        extraData={[tick, layout, selectionMode, selectedIds]}
+        contentContainerStyle={[
+            filteredItems.length === 0 ? styles.emptyFlex : (layout === 'list' ? { paddingHorizontal: 16 } : undefined),
+            layout === 'grid' && { gap: GUTTER }
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons
@@ -387,14 +422,14 @@ export default function ShopProductsScreen() {
           const ended  = isEnded(item);
           const live   = isLive(item);
           const noTimer = hasNoTimer(item);
-          const isManaging = managingId === item.id;
+          const isSelected = selectedIds.includes(item.id);
 
           if (layout === 'list') {
             return (
               <TouchableOpacity
-                style={[styles.listItemRow, ended && { opacity: 0.6 }]}
-                onPress={() => setSelected(item)}
-                onLongPress={() => setManagingId(item.id)}
+                style={[styles.listItemRow, ended && { opacity: 0.6 }, isSelected && styles.listSelected]}
+                onPress={() => selectionMode ? toggleSelection(item.id) : setSelected(item)}
+                onLongPress={() => !selectionMode && enterSelectionMode(item.id)}
               >
                 <View style={styles.listImageContainerSmall}>
                   <Image source={{ uri: item.image_url }} style={styles.listImage} />
@@ -411,34 +446,24 @@ export default function ShopProductsScreen() {
 
                   <View style={styles.listPriceInfo}>
                     <Text style={styles.listPriceRow}>₱{item.price?.toLocaleString()}</Text>
-                    <View style={[
-                        styles.typeBadgeSmall,
-                        live && styles.typeBadgeLive,
-                        scheduled && styles.typeBadgeScheduled,
-                        ended && styles.typeBadgeEnded
-                    ]}>
-                        <Text style={[styles.badgeTextSmall, (live || scheduled || ended) && { color: '#fff' }]}>
-                        {live ? 'LIVE' : scheduled ? 'SCHED' : ended ? 'ENDED' : item.selling_type.toUpperCase()}
-                        </Text>
-                    </View>
+                    {selectionMode ? (
+                      <View style={[styles.selectCircle, isSelected && styles.selectCircleActive]}>
+                        {isSelected && <Ionicons name="checkmark" size={12} color="#fff" />}
+                      </View>
+                    ) : (
+                      <View style={[
+                          styles.typeBadgeSmall,
+                          live && styles.typeBadgeLive,
+                          scheduled && styles.typeBadgeScheduled,
+                          ended && styles.typeBadgeEnded
+                      ]}>
+                          <Text style={[styles.badgeTextSmall, (live || scheduled || ended) && { color: '#fff' }]}>
+                          {live ? 'LIVE' : scheduled ? 'SCHED' : ended ? 'ENDED' : item.selling_type.toUpperCase()}
+                          </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-
-                {isManaging && (
-                  <View style={styles.adminOverlayListRow}>
-                    {!ended && (
-                        <TouchableOpacity style={styles.adminBtnSmall} onPress={() => { setManagingId(null); router.push({ pathname: '/(tabs)/profile/shop/addItem', params: { id: item.id } }); }}>
-                        <Ionicons name="create" size={18} color="#fff" />
-                        </TouchableOpacity>
-                    )}
-                    <TouchableOpacity style={[styles.adminBtnSmall, styles.adminBtnDelete]} onPress={() => handleDelete(item.id)}>
-                      <Ionicons name="trash" size={18} color="#fff" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.adminCloseSmall} onPress={() => setManagingId(null)}>
-                        <Ionicons name="close" size={20} color="#111" />
-                    </TouchableOpacity>
-                  </View>
-                )}
               </TouchableOpacity>
             );
           }
@@ -447,18 +472,22 @@ export default function ShopProductsScreen() {
             <TouchableOpacity
               style={[
                 styles.cell,
-                { marginLeft: index % 3 === 1 ? 1.5 : 0, marginRight: index % 3 === 1 ? 1.5 : 0 },
                 ended && { opacity: 0.55 },
-                scheduled && styles.cellScheduled,
+                isSelected && styles.cellSelected
               ]}
               activeOpacity={0.85}
-              onPress={() => {
-                if (isManaging) setManagingId(null);
-                else setSelected(item);
-              }}
-              onLongPress={() => setManagingId(item.id)}
+              onPress={() => selectionMode ? toggleSelection(item.id) : setSelected(item)}
+              onLongPress={() => !selectionMode && enterSelectionMode(item.id)}
             >
               <Image source={{ uri: item.image_url }} style={styles.cellImage} />
+              
+              {selectionMode && (
+                <View style={styles.cellSelectionOverlay}>
+                  <View style={[styles.selectCircle, isSelected && styles.selectCircleActive]}>
+                    {isSelected && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                </View>
+              )}
 
               {scheduled && <View style={styles.scheduledOverlayTint} />}
 
@@ -487,33 +516,14 @@ export default function ShopProductsScreen() {
               {live && item.end_time && <AuctionTimer endTime={item.end_time} />}
               
               <View style={styles.cellOverlay}>
-                <Text style={styles.cellPrice}>₱{item.price?.toLocaleString()}</Text>
-                {item.selling_type === 'auction' && !scheduled && (
-                  <Text style={styles.cellMeta}>{item.bids_count ?? 0} bids</Text>
-                )}
+                <Text style={styles.cellPrice} numberOfLines={1}>₱{item.price?.toLocaleString()}</Text>
               </View>
-
-              {isManaging && (
-                <View style={styles.adminOverlay}>
-                  {!ended && (
-                    <TouchableOpacity style={styles.adminBtn} onPress={() => { setManagingId(null); router.push({ pathname: '/(tabs)/profile/shop/addItem', params: { id: item.id } }); }}>
-                        <Ionicons name="create" size={22} color="#fff" />
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity style={[styles.adminBtn, styles.adminBtnDelete]} onPress={() => handleDelete(item.id)}>
-                    <Ionicons name="trash" size={22} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.adminClose} onPress={() => setManagingId(null)}>
-                    <Ionicons name="close-circle" size={18} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              )}
             </TouchableOpacity>
           );
         }}
       />
 
-      <Modal visible={!!selected} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={!!selected && !selectionMode} transparent animationType="fade" statusBarTranslucent>
         <TouchableWithoutFeedback onPress={() => setSelected(null)}>
           <View style={styles.backdrop}>
             <TouchableWithoutFeedback>
@@ -535,8 +545,30 @@ export default function ShopProductsScreen() {
                 </View>
 
                 <View style={styles.modalBody}>
-                  <Text style={styles.modalTitle}>{selected?.title}</Text>
-                  <Text style={styles.modalSeller}>{shopData?.full_name || 'My Shop'}</Text>
+                  <View style={styles.modalHeaderRow}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.modalTitle}>{selected?.title}</Text>
+                        <Text style={styles.modalSeller}>{shopData?.full_name || 'My Shop'}</Text>
+                    </View>
+                    {selected?.selling_type === 'auction' && (
+                        <View style={[
+                            styles.bidderBadge,
+                            (!selected?.bids_count || selected.bids_count === 0) && styles.noBidderBadge
+                        ]}>
+                            <Ionicons 
+                                name={(!selected?.bids_count || selected.bids_count === 0) ? "people-outline" : "people"} 
+                                size={12} 
+                                color={(!selected?.bids_count || selected.bids_count === 0) ? "#6B7280" : "#111"} 
+                            />
+                            <Text style={[
+                                styles.bidderBadgeText,
+                                (!selected?.bids_count || selected.bids_count === 0) && styles.noBidderBadgeText
+                            ]}>
+                                {(!selected?.bids_count || selected.bids_count === 0) ? "No bidders" : `${selected.bids_count} Bidders`}
+                            </Text>
+                        </View>
+                    )}
+                  </View>
 
                   {isActuallyScheduled(selected) && selected?.start_time && (
                     <ModalScheduledRow startTime={selected.start_time} />
@@ -559,15 +591,53 @@ export default function ShopProductsScreen() {
                     )}
                   </View>
 
-                  <TouchableOpacity style={[styles.actionBtn, isEnded(selected) && { backgroundColor: '#6B7280' }]} onPress={() => { setSelected(null); router.push(`/products/${selected?.id}`); }}>
-                    <Text style={styles.actionBtnText}>View Listing</Text>
-                  </TouchableOpacity>
+                  <View style={styles.modalActions}>
+                    {(isLive(selected) || isEnded(selected)) && (
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, { flex: 1, backgroundColor: '#F3F4F6' }]} 
+                            onPress={() => {
+                                setSelected(null);
+                                router.push(`/products/${selected.id}/bidders`);
+                            }}
+                        >
+                            <Text style={[styles.actionBtnText, { color: '#111' }]}>View Bidders</Text>
+                        </TouchableOpacity>
+                    )}
+                    {!isEnded(selected) && (
+                      <TouchableOpacity 
+                        style={[styles.actionBtn, { flex: 1, backgroundColor: '#111' }]} 
+                        onPress={() => { 
+                            setSelected(null); 
+                            router.push({ pathname: '/(tabs)/profile/shop/addItem', params: { id: selected.id } }); 
+                        }}
+                      >
+                          <Text style={styles.actionBtnText}>Edit</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {showDeleteConfirm && (
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete {selectedIds.length} Items?</Text>
+            <Text style={styles.confirmSub}>This action cannot be undone.</Text>
+            <View style={styles.confirmActionRow}>
+              <TouchableOpacity style={styles.confirmBtnSecondary} onPress={() => setShowDeleteConfirm(false)}>
+                <Text style={styles.confirmBtnTextSecondary}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtnPrimary} onPress={confirmBulkDelete}>
+                <Text style={styles.confirmBtnTextPrimary}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -576,6 +646,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centered:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  topNavRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   navBtn: { padding: 4 },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111' },
   filterScrollContent: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
@@ -587,10 +658,13 @@ const styles = StyleSheet.create({
   countBadgeActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   countText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#666' },
   countTextActive: { color: '#fff' },
-  cell: { width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE, backgroundColor: '#F2F2F2', position: 'relative', overflow: 'hidden', marginBottom: 1.5 },
-  cellScheduled: { borderWidth: 2, borderColor: '#111' },
+  cell: { width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE, backgroundColor: '#F2F2F2', position: 'relative', overflow: 'hidden' },
+  cellSelected: { opacity: 0.8 },
+  cellSelectionOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.1)', padding: 8, alignItems: 'flex-end' },
+  selectCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#fff', backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' },
+  selectCircleActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
   cellImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  scheduledOverlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.05)' },
+  scheduledOverlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)' },
   typeBadge: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(17,17,17,0.8)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   typeBadgeLive: { backgroundColor: 'rgba(255,107,53,0.92)' },
   typeBadgeFlip: { backgroundColor: 'rgba(59,130,246,0.9)' },
@@ -599,7 +673,7 @@ const styles = StyleSheet.create({
   typeBadgeScheduled: { backgroundColor: 'rgba(17,17,17,0.9)' },
   liveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
   badgeText: { fontFamily: 'Unbounded_700Bold', fontSize: 8, color: '#fff', letterSpacing: 0.5 },
-  auctionTimerContainer: { position: 'absolute', bottom: 34, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.85)', paddingVertical: 4, alignItems: 'center' },
+  auctionTimerContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.85)', paddingVertical: 4, alignItems: 'center' },
   listTimerContainer: { bottom: 0, paddingVertical: 2 },
   auctionHeader: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
   auctionHeaderText: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#fff', opacity: 0.8 },
@@ -607,57 +681,20 @@ const styles = StyleSheet.create({
   digitBox: { backgroundColor: '#333', borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, minWidth: 16, alignItems: 'center' },
   digitText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#fff' },
   separator: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold' },
-  scheduledBar: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(17,17,17,0.88)' },
+  scheduledBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(17,17,17,0.88)' },
   scheduledBarText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff' },
   cellOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 6, paddingVertical: 5 },
-  cellPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 11, color: '#fff' },
-  cellMeta: { fontFamily: 'Inter_400Regular', fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
-  adminOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15 },
-  adminBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center' },
-  adminBtnDelete: { backgroundColor: '#EF4444' },
-  adminClose: { position: 'absolute', top: 5, right: 5 },
-  
-  // NEW LIST ROW STYLES (TABLE STYLE)
-  listItemRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center',
-    backgroundColor: '#fff', 
-    paddingVertical: 10, 
-    paddingHorizontal: 4,
-    borderBottomWidth: 1, 
-    borderBottomColor: '#F2F2F2' 
-  },
-  listImageContainerSmall: { width: 50, height: 50, borderRadius: 6, overflow: 'hidden', backgroundColor: '#F9F9F9' },
+  cellPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 10, color: '#fff' },
+  listItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#F2F2F2' },
+  listSelected: { backgroundColor: '#F9FAFB' },
+  listImageContainerSmall: { width: 50, height: 50, borderRadius: 8, overflow: 'hidden', backgroundColor: '#F9F9F9' },
   listImage: { width: '100%', height: '100%' },
-  listContentRow: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    marginLeft: 12, 
-    alignItems: 'center', 
-    justifyContent: 'space-between' 
-  },
+  listContentRow: { flex: 1, flexDirection: 'row', marginLeft: 12, alignItems: 'center', justifyContent: 'space-between' },
   listMainInfo: { flex: 1, justifyContent: 'center' },
   listTitleRow: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#111', marginBottom: 2 },
   listMetaRow: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#999' },
-  listPriceInfo: { alignItems: 'flex-end', justifyContent: 'center', minWidth: 80 },
-  listPriceRow: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#111', marginBottom: 4 },
-  
-  // ADMIN OVERLAY FOR TABLE ROW
-  adminOverlayListRow: { 
-    position: 'absolute', 
-    right: 0, 
-    top: 0, 
-    bottom: 0, 
-    backgroundColor: 'rgba(255,255,255,0.95)', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-    paddingLeft: 15, 
-    paddingRight: 5 
-  },
-  adminBtnSmall: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center' },
-  adminCloseSmall: { padding: 4, marginLeft: 4 },
-
+  listPriceInfo: { alignItems: 'flex-end', justifyContent: 'center', minWidth: 80, gap: 4 },
+  listPriceRow: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#111' },
   typeBadgeSmall: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '#F2F2F2' },
   badgeTextSmall: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#111' },
   emptyFlex: { flex: 1 },
@@ -671,8 +708,13 @@ const styles = StyleSheet.create({
   modalLiveBadge: { position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,53,0.92)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, gap: 4 },
   modalScheduledBadge: { backgroundColor: 'rgba(17,17,17,0.92)' },
   modalBody: { padding: 20, paddingBottom: 32 },
-  modalTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 15, color: '#111', marginBottom: 4 },
-  modalSeller: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#888', marginBottom: 12 },
+  modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 10 },
+  modalTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 15, color: '#111', marginBottom: 2 },
+  modalSeller: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#888' },
+  bidderBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 6, borderWidth: 1, borderColor: '#E5E7EB' },
+  noBidderBadge: { backgroundColor: '#F9FAFB', borderColor: '#F3F4F6' },
+  bidderBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 11, color: '#111' },
+  noBidderBadgeText: { color: '#6B7280', fontFamily: 'Inter_500Medium' },
   countdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F7F7F7', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
   countdownLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   countdownLabel: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#111' },
@@ -684,6 +726,16 @@ const styles = StyleSheet.create({
   statHighlight: { backgroundColor: '#FFF4EF' },
   statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#888', marginBottom: 3 },
   statValue: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111' },
+  modalActions: { flexDirection: 'row', gap: 10 },
   actionBtn: { backgroundColor: '#111', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
   actionBtnText: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#fff', letterSpacing: 0.3 },
+  confirmOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 1000, paddingHorizontal: 16 },
+  confirmCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5 },
+  confirmTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 14, color: '#111', marginBottom: 4 },
+  confirmSub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#666', marginBottom: 20 },
+  confirmActionRow: { flexDirection: 'row', gap: 12 },
+  confirmBtnPrimary: { flex: 1, backgroundColor: '#EF4444', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  confirmBtnSecondary: { flex: 1, backgroundColor: '#F3F4F6', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  confirmBtnTextPrimary: { fontFamily: 'Inter_700Bold', fontSize: 12, color: '#fff' },
+  confirmBtnTextSecondary: { fontFamily: 'Inter_700Bold', fontSize: 12, color: '#4B5563' },
 });
