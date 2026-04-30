@@ -20,13 +20,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width, height } = Dimensions.get('window');
 const ITEM_SIZE = (width - 3) / 3;
 
-type FilterType = 'all' | 'auction' | 'posted' | 'fast_flip';
+type FilterType = 'all' | 'scheduled' | 'auction' | 'posted' | 'fast_flip';
 
 const FILTERS: { id: FilterType; label: string; icon: string }[] = [
-  { id: 'all',       label: 'All',       icon: 'grid-outline'     },
-  { id: 'auction',   label: 'Auction',   icon: 'hammer-outline'   },
-  { id: 'posted',    label: 'Fixed',     icon: 'pricetag-outline' },
-  { id: 'fast_flip', label: 'Fast Flip', icon: 'flash-outline'    },
+  { id: 'all',       label: 'All',       icon: 'grid-outline'        },
+  { id: 'scheduled', label: 'Scheduled', icon: 'calendar-outline'    },
+  { id: 'auction',   label: 'Auction',   icon: 'hammer-outline'      },
+  { id: 'posted',    label: 'Fixed',     icon: 'pricetag-outline'    },
+  { id: 'fast_flip', label: 'Fast Flip', icon: 'flash-outline'       },
 ];
 
 function getRemainingMs(endTime: string | null): number {
@@ -34,12 +35,17 @@ function getRemainingMs(endTime: string | null): number {
   return Math.max(0, new Date(endTime).getTime() - Date.now());
 }
 
+function getStartsInMs(startTime: string | null): number {
+  if (!startTime) return 0;
+  return Math.max(0, new Date(startTime).getTime() - Date.now());
+}
+
 type Urgency = 'ended' | 'critical' | 'warning' | 'normal';
 
 function getUrgency(ms: number): Urgency {
-  if (ms <= 0)         return 'ended';
-  if (ms < 60_000)     return 'critical';
-  if (ms < 300_000)    return 'warning';
+  if (ms <= 0)      return 'ended';
+  if (ms < 60_000)  return 'critical';
+  if (ms < 300_000) return 'warning';
   return 'normal';
 }
 
@@ -55,10 +61,24 @@ function useCountdown(endTime: string | null): number {
   return remaining;
 }
 
+function formatCountdown(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+  if (m > 0) return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  return `${String(s).padStart(2, '0')}s`;
+}
+
+function formatScheduledDate(startTime: string): string {
+  const d = new Date(startTime);
+  return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function AuctionTimer({ endTime }: { endTime: string }) {
   const remaining = useCountdown(endTime);
   const urgency = getUrgency(remaining);
-
   if (urgency === 'ended') return null;
 
   const totalSec = Math.floor(remaining / 1000);
@@ -83,24 +103,75 @@ function AuctionTimer({ endTime }: { endTime: string }) {
   );
 }
 
+function ScheduledBar({ startTime }: { startTime: string }) {
+  const [startsIn, setStartsIn] = useState(() => getStartsInMs(startTime));
+  useEffect(() => {
+    const tick = () => setStartsIn(getStartsInMs(startTime));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startTime]);
+
+  return (
+    <View style={styles.scheduledBar}>
+      <Ionicons name="calendar-outline" size={9} color="#fff" />
+      <Text style={styles.scheduledBarText}>
+        {startsIn > 0 ? `STARTS IN ${formatCountdown(startsIn)}` : 'STARTING...'}
+      </Text>
+    </View>
+  );
+}
+
 function ModalCountdown({ endTime }: { endTime: string }) {
   const remaining = useCountdown(endTime);
   const urgency = getUrgency(remaining);
-  const color = urgency === 'critical' ? '#DC2626' : urgency === 'warning' ? '#D97706' : urgency === 'ended' ? '#6B7280' : '#111';
-  
-  const totalSec = Math.floor(remaining / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const timeStr = h > 0 ? `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s` : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  const color =
+    urgency === 'critical' ? '#DC2626' :
+    urgency === 'warning'  ? '#D97706' :
+    urgency === 'ended'    ? '#6B7280' : '#111';
+
+  const timeStr = remaining <= 0 ? '—' : formatCountdown(remaining);
 
   return (
-    <View style={[styles.countdownRow, urgency === 'critical' && { backgroundColor: '#FEF2F2' }, urgency === 'warning' && { backgroundColor: '#FFFBEB' }]}>
+    <View style={[
+      styles.countdownRow,
+      urgency === 'critical' && { backgroundColor: '#FEF2F2' },
+      urgency === 'warning'  && { backgroundColor: '#FFFBEB' },
+    ]}>
       <View style={styles.countdownLeft}>
         <Ionicons name="time-outline" size={14} color={color} />
-        <Text style={[styles.countdownLabel, { color }]}>{remaining <= 0 ? 'Auction ended' : 'Time remaining'}</Text>
+        <Text style={[styles.countdownLabel, { color }]}>
+          {remaining <= 0 ? 'Auction ended' : 'Time remaining'}
+        </Text>
       </View>
-      <Text style={[styles.countdownValue, { color }]}>{remaining <= 0 ? '—' : timeStr}</Text>
+      <Text style={[styles.countdownValue, { color }]}>{timeStr}</Text>
+    </View>
+  );
+}
+
+function ModalScheduledRow({ startTime }: { startTime: string }) {
+  const [startsIn, setStartsIn] = useState(() => getStartsInMs(startTime));
+  useEffect(() => {
+    const tick = () => setStartsIn(getStartsInMs(startTime));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startTime]);
+
+  return (
+    <View style={styles.scheduledModalRow}>
+      <View style={styles.countdownLeft}>
+        <Ionicons name="calendar-outline" size={14} color="#111" />
+        <Text style={styles.countdownLabel}>Starts</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={[styles.countdownValue, { fontSize: 12 }]}>
+          {formatScheduledDate(startTime)}
+        </Text>
+        {startsIn > 0 && (
+          <Text style={styles.startsInSub}>in {formatCountdown(startsIn)}</Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -132,16 +203,17 @@ export default function ShopProductsScreen() {
           { event: '*', schema: 'public', table: 'items', filter: `user_id=eq.${user.id}` },
           (payload) => {
             if (payload.eventType === 'INSERT') {
-              if (payload.new.status === 'active') {
+              if (payload.new.status === 'active' || payload.new.status === 'scheduled') {
                 setItems((prev) => [payload.new, ...prev]);
               }
             } else if (payload.eventType === 'UPDATE') {
-              setItems((prev) => 
-                prev.map(i => i.id === payload.new.id ? payload.new : i)
-                    .filter(i => i.status === 'active')
+              setItems((prev) =>
+                prev
+                  .map((i) => (i.id === payload.new.id ? payload.new : i))
+                  .filter((i) => i.status === 'active' || i.status === 'scheduled')
               );
             } else if (payload.eventType === 'DELETE') {
-              setItems((prev) => prev.filter(i => i.id !== payload.old.id));
+              setItems((prev) => prev.filter((i) => i.id !== payload.old.id));
             }
           }
         )
@@ -153,8 +225,16 @@ export default function ShopProductsScreen() {
 
   const fetchShopContent = async (userId: string) => {
     try {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      const { data: products } = await supabase.from('items').select('*').eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false });
+      const { data: profile } = await supabase
+        .from('profiles').select('*').eq('id', userId).single();
+
+      const { data: products } = await supabase
+        .from('items')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['active', 'scheduled'])
+        .order('created_at', { ascending: false });
+
       setShopData(profile);
       setItems(products || []);
     } catch (error) {
@@ -164,14 +244,32 @@ export default function ShopProductsScreen() {
     }
   };
 
+  const isActuallyScheduled = (item: any) => {
+    return item?.status === 'scheduled' && getStartsInMs(item.start_time) > 0;
+  };
+
+  const isActuallyLive = (item: any) => {
+    if (item?.status === 'active') return true;
+    return item?.status === 'scheduled' && getStartsInMs(item.start_time) <= 0;
+  };
+
   const filteredItems = useMemo(() => {
     if (activeFilter === 'all') return items;
-    return items.filter((i) => i.selling_type === activeFilter);
-  }, [items, activeFilter]);
+    if (activeFilter === 'scheduled') return items.filter((i) => isActuallyScheduled(i));
+    return items.filter((i) => i.selling_type === activeFilter && isActuallyLive(i));
+  }, [items, activeFilter, tick]);
 
-  const isLive = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) > 0;
-  const isEnded = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) <= 0;
-  const hasNoTimer = (item: any) => item?.selling_type === 'auction' && !item?.end_time;
+  const counts = useMemo(() => ({
+    all:       items.length,
+    scheduled: items.filter((i) => isActuallyScheduled(i)).length,
+    auction:   items.filter((i) => i.selling_type === 'auction'    && isActuallyLive(i)).length,
+    posted:    items.filter((i) => i.selling_type === 'posted'     && isActuallyLive(i)).length,
+    fast_flip: items.filter((i) => i.selling_type === 'fast_flip'  && isActuallyLive(i)).length,
+  }), [items, tick]);
+
+  const isLive      = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) > 0 && isActuallyLive(item);
+  const isEnded     = (item: any) => item?.selling_type === 'auction' && item?.end_time && getRemainingMs(item.end_time) <= 0 && isActuallyLive(item);
+  const hasNoTimer  = (item: any) => item?.selling_type === 'auction' && !item?.end_time && isActuallyLive(item);
 
   if (loading) {
     return (
@@ -197,14 +295,35 @@ export default function ShopProductsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
           {FILTERS.map((f) => {
             const active = activeFilter === f.id;
-            const count = f.id === 'all' ? items.length : items.filter((i) => i.selling_type === f.id).length;
+            const count = counts[f.id];
             return (
-              <TouchableOpacity key={f.id} style={[styles.filterTab, active && styles.filterTabActive]} onPress={() => setActiveFilter(f.id)} activeOpacity={0.75}>
+              <TouchableOpacity
+                key={f.id}
+                style={[
+                  styles.filterTab,
+                  active && styles.filterTabActive,
+                ]}
+                onPress={() => setActiveFilter(f.id)}
+                activeOpacity={0.75}
+              >
                 <Ionicons name={f.icon as any} size={14} color={active ? '#fff' : '#111'} />
-                <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{f.label}</Text>
+                <Text style={[
+                  styles.filterLabel,
+                  active && styles.filterLabelActive,
+                ]}>
+                  {f.label}
+                </Text>
                 {count > 0 && (
-                  <View style={[styles.countBadge, active && styles.countBadgeActive]}>
-                    <Text style={[styles.countText, active && styles.countTextActive]}>{count}</Text>
+                  <View style={[
+                    styles.countBadge,
+                    active && styles.countBadgeActive,
+                  ]}>
+                    <Text style={[
+                      styles.countText,
+                      active && styles.countTextActive,
+                    ]}>
+                      {count}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -222,24 +341,63 @@ export default function ShopProductsScreen() {
         contentContainerStyle={filteredItems.length === 0 ? styles.emptyFlex : undefined}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={48} color="#E2E2E2" />
-            <Text style={styles.emptyText}>{activeFilter === 'all' ? 'No active listings yet.' : `No ${FILTERS.find((f) => f.id === activeFilter)?.label} listings.`}</Text>
+            <Ionicons
+              name={activeFilter === 'scheduled' ? 'calendar-outline' : 'cube-outline'}
+              size={48}
+              color="#E2E2E2"
+            />
+            <Text style={styles.emptyText}>
+              {activeFilter === 'scheduled'
+                ? 'No scheduled listings.'
+                : activeFilter === 'all'
+                ? 'No active listings yet.'
+                : `No ${FILTERS.find((f) => f.id === activeFilter)?.label} listings.`}
+            </Text>
           </View>
         }
         renderItem={({ item, index }) => {
-          const ended = isEnded(item);
-          const live = isLive(item);
+          const scheduled = isActuallyScheduled(item);
+          const ended  = isEnded(item);
+          const live   = isLive(item);
           const noTimer = hasNoTimer(item);
+
           return (
-            <TouchableOpacity style={[styles.cell, { marginLeft: index % 3 === 1 ? 1.5 : 0, marginRight: index % 3 === 1 ? 1.5 : 0 }, ended && { opacity: 0.55 }]} activeOpacity={0.85} onPress={() => setSelected(item)}>
+            <TouchableOpacity
+              style={[
+                styles.cell,
+                { marginLeft: index % 3 === 1 ? 1.5 : 0, marginRight: index % 3 === 1 ? 1.5 : 0 },
+                ended && { opacity: 0.55 },
+                scheduled && styles.cellScheduled,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => setSelected(item)}
+            >
               <Image source={{ uri: item.image_url }} style={styles.cellImage} />
-              {(item.selling_type !== 'posted' || ended) && (
-                <View style={[styles.typeBadge, item.selling_type === 'fast_flip' && styles.typeBadgeFlip, live && styles.typeBadgeLive, ended && styles.typeBadgeEnded, noTimer && styles.typeBadgeNoTimer]}>
-                  {live && <View style={styles.liveDot} />}
-                  {noTimer && <Ionicons name="alert-circle-outline" size={9} color="#fff" />}
-                  <Text style={styles.badgeText}>{live ? 'LIVE' : ended ? 'ENDED' : noTimer ? 'NO TIMER' : item.selling_type === 'fast_flip' ? 'FLIP' : 'AUC'}</Text>
+
+              {scheduled && <View style={styles.scheduledOverlayTint} />}
+
+              {scheduled ? (
+                <View style={[styles.typeBadge, styles.typeBadgeScheduled]}>
+                  <Ionicons name="calendar-outline" size={9} color="#fff" />
+                  <Text style={styles.badgeText}>SCHED</Text>
                 </View>
-              )}
+              ) : (item.selling_type !== 'posted' || ended) ? (
+                <View style={[
+                  styles.typeBadge,
+                  item.selling_type === 'fast_flip' && styles.typeBadgeFlip,
+                  live   && styles.typeBadgeLive,
+                  ended  && styles.typeBadgeEnded,
+                  noTimer && styles.typeBadgeNoTimer,
+                ]}>
+                  {live    && <View style={styles.liveDot} />}
+                  {noTimer && <Ionicons name="alert-circle-outline" size={9} color="#fff" />}
+                  <Text style={styles.badgeText}>
+                    {live ? 'LIVE' : ended ? 'ENDED' : noTimer ? 'NO TIMER' : item.selling_type === 'fast_flip' ? 'FLIP' : 'AUC'}
+                  </Text>
+                </View>
+              ) : null}
+
+              {scheduled && item.start_time && <ScheduledBar startTime={item.start_time} />}
               {live && item.end_time && <AuctionTimer endTime={item.end_time} />}
               {noTimer && (
                 <View style={styles.noTimerBar}>
@@ -247,9 +405,17 @@ export default function ShopProductsScreen() {
                   <Text style={styles.timerDigitText}>No end time set</Text>
                 </View>
               )}
+
               <View style={styles.cellOverlay}>
                 <Text style={styles.cellPrice}>₱{item.price?.toLocaleString()}</Text>
-                {item.selling_type === 'auction' && <Text style={styles.cellMeta}>{item.bids_count ?? 0} bids</Text>}
+                {item.selling_type === 'auction' && !scheduled && (
+                  <Text style={styles.cellMeta}>{item.bids_count ?? 0} bids</Text>
+                )}
+                {scheduled && (
+                  <Text style={styles.cellMeta}>
+                    {item.selling_type === 'auction' ? 'Auction' : item.selling_type === 'fast_flip' ? 'Fast Flip' : 'Fixed'}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -263,42 +429,96 @@ export default function ShopProductsScreen() {
               <View style={styles.sheet}>
                 <View style={styles.modalImageWrap}>
                   <Image source={{ uri: selected?.image_url }} style={styles.modalImage} />
-                  <TouchableOpacity style={styles.closeBtn} onPress={() => setSelected(null)}><Ionicons name="close" size={20} color="#fff" /></TouchableOpacity>
-                  {isLive(selected) && <View style={styles.modalLiveBadge}><View style={styles.liveDot} /><Text style={styles.badgeText}>LIVE</Text></View>}
-                  {isEnded(selected) && <View style={[styles.modalLiveBadge, styles.typeBadgeEnded]}><Text style={styles.badgeText}>AUCTION ENDED</Text></View>}
-                  {hasNoTimer(selected) && <View style={[styles.modalLiveBadge, styles.typeBadgeNoTimer]}><Ionicons name="alert-circle-outline" size={11} color="#fff" /><Text style={styles.badgeText}>NO TIMER</Text></View>}
+                  <TouchableOpacity style={styles.closeBtn} onPress={() => setSelected(null)}>
+                    <Ionicons name="close" size={20} color="#fff" />
+                  </TouchableOpacity>
+
+                  {isActuallyScheduled(selected) && (
+                    <View style={[styles.modalLiveBadge, styles.modalScheduledBadge]}>
+                      <Ionicons name="calendar-outline" size={11} color="#fff" />
+                      <Text style={styles.badgeText}>SCHEDULED</Text>
+                    </View>
+                  )}
+                  {isLive(selected)      && <View style={styles.modalLiveBadge}><View style={styles.liveDot} /><Text style={styles.badgeText}>LIVE</Text></View>}
+                  {isEnded(selected)     && <View style={[styles.modalLiveBadge, styles.typeBadgeEnded]}><Text style={styles.badgeText}>AUCTION ENDED</Text></View>}
+                  {hasNoTimer(selected)  && <View style={[styles.modalLiveBadge, styles.typeBadgeNoTimer]}><Ionicons name="alert-circle-outline" size={11} color="#fff" /><Text style={styles.badgeText}>NO TIMER</Text></View>}
                 </View>
+
                 <View style={styles.modalBody}>
                   <Text style={styles.modalTitle}>{selected?.title}</Text>
                   <Text style={styles.modalSeller}>{shopData?.full_name || shopData?.username || 'My Shop'}</Text>
-                  {selected?.selling_type === 'auction' && selected?.end_time && <ModalCountdown endTime={selected.end_time} />}
+
+                  {isActuallyScheduled(selected) && selected?.start_time && (
+                    <ModalScheduledRow startTime={selected.start_time} />
+                  )}
+
+                  {isLive(selected) && selected?.end_time && (
+                    <ModalCountdown endTime={selected.end_time} />
+                  )}
+
                   {hasNoTimer(selected) && (
                     <View style={styles.noTimerWarning}>
                       <Ionicons name="alert-circle-outline" size={16} color="#B45309" />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.noTimerWarningTitle}>No end time set</Text>
-                        <Text style={styles.noTimerWarningDesc}>This auction has no duration. Edit the listing to add an end time.</Text>
+                        <Text style={styles.noTimerWarningDesc}>
+                          This auction has no duration. Edit the listing to add an end time.
+                        </Text>
                       </View>
                     </View>
                   )}
+
                   <View style={styles.modalStats}>
                     <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>{selected?.selling_type === 'auction' ? 'Starting Bid' : 'Price'}</Text>
+                      <Text style={styles.statLabel}>
+                        {selected?.selling_type === 'auction' ? 'Starting Bid' : 'Price'}
+                      </Text>
                       <Text style={styles.statValue}>₱{selected?.price?.toLocaleString()}</Text>
                     </View>
-                    {selected?.selling_type === 'auction' && (
+                    {selected?.selling_type === 'auction' && !isActuallyScheduled(selected) && (
                       <View style={[styles.statBox, styles.statHighlight]}>
-                        <Text style={[styles.statLabel, { color: '#FF6B35' }]}>{isEnded(selected) ? 'Final Bid' : 'Current Bid'}</Text>
-                        <Text style={[styles.statValue, { color: '#FF6B35' }]}>₱{(selected?.current_bid ?? selected?.price)?.toLocaleString()}</Text>
+                        <Text style={[styles.statLabel, { color: '#FF6B35' }]}>
+                          {isEnded(selected) ? 'Final Bid' : 'Current Bid'}
+                        </Text>
+                        <Text style={[styles.statValue, { color: '#FF6B35' }]}>
+                          ₱{(selected?.current_bid ?? selected?.price)?.toLocaleString()}
+                        </Text>
                       </View>
                     )}
                     <View style={styles.statBox}>
                       <Text style={styles.statLabel}>Qty</Text>
                       <Text style={styles.statValue}>{selected?.quantity ?? 1}</Text>
                     </View>
+                    {isActuallyScheduled(selected) && (
+                      <View style={styles.statBox}>
+                        <Text style={styles.statLabel}>Type</Text>
+                        <Text style={[styles.statValue, { fontSize: 11 }]}>
+                          {selected?.selling_type === 'auction' ? 'Auction' : selected?.selling_type === 'fast_flip' ? 'Fast Flip' : 'Fixed'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <TouchableOpacity style={[styles.actionBtn, isEnded(selected) && { backgroundColor: '#6B7280' }]} activeOpacity={0.85} onPress={() => { setSelected(null); router.push(`/products/${selected?.id}`); }}>
-                    <Text style={styles.actionBtnText}>{isEnded(selected) ? 'View Auction Results' : selected?.selling_type === 'auction' ? 'Place a Bid' : 'View Listing'}</Text>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionBtn,
+                      isEnded(selected)     && { backgroundColor: '#6B7280' },
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setSelected(null);
+                      router.push(`/products/${selected?.id}`);
+                    }}
+                  >
+                    <Text style={styles.actionBtnText}>
+                      {isActuallyScheduled(selected)
+                        ? 'View Scheduled Listing'
+                        : isEnded(selected)
+                        ? 'View Auction Results'
+                        : selected?.selling_type === 'auction'
+                        ? 'Place a Bid'
+                        : 'View Listing'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -326,29 +546,28 @@ const styles = StyleSheet.create({
   countText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#666' },
   countTextActive: { color: '#fff' },
   cell: { width: ITEM_SIZE, height: ITEM_SIZE, backgroundColor: '#F2F2F2', position: 'relative', overflow: 'hidden', marginBottom: 1.5 },
+  cellScheduled: { borderWidth: 2, borderColor: '#111' },
   cellImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  scheduledOverlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.05)' },
   typeBadge: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(17,17,17,0.8)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   typeBadgeLive: { backgroundColor: 'rgba(255,107,53,0.92)' },
   typeBadgeFlip: { backgroundColor: 'rgba(59,130,246,0.9)' },
   typeBadgeEnded: { backgroundColor: 'rgba(107,114,128,0.9)' },
   typeBadgeNoTimer: { backgroundColor: 'rgba(180,83,9,0.92)' },
-  
-  auctionTimerContainer: { position: 'absolute', bottom: 34, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)', paddingVertical: 4, alignItems: 'center', justifyContent: 'center' },
+  typeBadgeScheduled: { backgroundColor: 'rgba(17,17,17,0.9)' },
+  liveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  badgeText: { fontFamily: 'Unbounded_700Bold', fontSize: 8, color: '#fff', letterSpacing: 0.5 },
+  auctionTimerContainer: { position: 'absolute', bottom: 34, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.85)', paddingVertical: 4, alignItems: 'center', justifyContent: 'center' },
   auctionHeader: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
   auctionHeaderText: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#fff', opacity: 0.8, letterSpacing: 0.5 },
   digitContainer: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   digitBox: { backgroundColor: '#333', borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, minWidth: 16, alignItems: 'center' },
   digitText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#fff' },
   separator: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold', paddingBottom: 1 },
-
+  scheduledBar: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(17,17,17,0.88)' },
+  scheduledBarText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff', letterSpacing: 0.4 },
   noTimerBar: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(180,83,9,0.88)' },
   timerDigitText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff', letterSpacing: 0.4 },
-  
-  noTimerWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 12, marginBottom: 14 },
-  noTimerWarningTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#92400E', marginBottom: 2 },
-  noTimerWarningDesc: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#B45309', lineHeight: 16 },
-  liveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
-  badgeText: { fontFamily: 'Unbounded_700Bold', fontSize: 8, color: '#fff', letterSpacing: 0.5 },
   cellOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 6, paddingVertical: 5 },
   cellPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 11, color: '#fff' },
   cellMeta: { fontFamily: 'Inter_400Regular', fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
@@ -361,6 +580,7 @@ const styles = StyleSheet.create({
   modalImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   closeBtn: { position: 'absolute', top: 14, right: 14, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   modalLiveBadge: { position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,53,0.92)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, gap: 4 },
+  modalScheduledBadge: { backgroundColor: 'rgba(17,17,17,0.92)' },
   modalBody: { padding: 20, paddingBottom: 32 },
   modalTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 15, color: '#111', marginBottom: 4 },
   modalSeller: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#888', marginBottom: 12 },
@@ -368,6 +588,11 @@ const styles = StyleSheet.create({
   countdownLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   countdownLabel: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#111' },
   countdownValue: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111' },
+  scheduledModalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F7F7F7', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
+  startsInSub: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#666', marginTop: 2 },
+  noTimerWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 12, marginBottom: 14 },
+  noTimerWarningTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#92400E', marginBottom: 2 },
+  noTimerWarningDesc: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#B45309', lineHeight: 16 },
   modalStats: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   statBox: { flex: 1, backgroundColor: '#F7F7F7', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   statHighlight: { backgroundColor: '#FFF4EF' },

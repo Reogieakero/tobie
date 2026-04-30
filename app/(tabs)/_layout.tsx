@@ -160,7 +160,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/components/ManagementGrid" options={{ href: null }} />
       <Tabs.Screen name="profile/shop/addItem/index" options={{ href: null }} />
       <Tabs.Screen name="profile/shop/shop-products" options={{ href: null }} />
-      
+      <Tabs.Screen name="profile/shop/addItem/components/ImageUpload" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/SellingTypeSelector" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/AuctionScheduler" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/PricingFields" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/IssuesSection" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/addItem/components/ValidatedField" options={{ href: null }} />
     </Tabs>
   );
 }
