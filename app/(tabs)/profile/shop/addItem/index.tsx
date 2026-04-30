@@ -42,7 +42,7 @@ export default function AddItemScreen() {
       <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.topNav}>
-          <TouchableOpacity style={styles.navBtn} onPress={() => router.replace('/(tabs)/profile')}>
+          <TouchableOpacity style={styles.navBtn} onPress={() => router.replace('/(tabs)/profile/shop')}>
             <Ionicons name="arrow-back" size={24} color="#111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>LIST NEW ITEM</Text>
