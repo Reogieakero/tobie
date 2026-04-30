@@ -19,14 +19,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
-const ITEM_SIZE = (width - 3) / 3;
+const GRID_ITEM_SIZE = (width - 3) / 3;
 
 type FilterType = 'all' | 'scheduled' | 'auction' | 'posted' | 'fast_flip';
+type ViewLayout = 'grid' | 'list';
 
 const FILTERS: { id: FilterType; label: string; icon: string }[] = [
-  { id: 'all',       label: 'All',       icon: 'grid-outline'        },
+  { id: 'all',       label: 'All',       icon: 'grid-outline'         },
   { id: 'scheduled', label: 'Scheduled', icon: 'calendar-outline'    },
-  { id: 'auction',   label: 'Auction',   icon: 'hammer-outline'      },
+  { id: 'auction',   label: 'Auction',   icon: 'hammer-outline'       },
   { id: 'posted',    label: 'Fixed',     icon: 'pricetag-outline'    },
   { id: 'fast_flip', label: 'Fast Flip', icon: 'flash-outline'       },
 ];
@@ -77,7 +78,7 @@ function formatScheduledDate(startTime: string): string {
   return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function AuctionTimer({ endTime }: { endTime: string }) {
+function AuctionTimer({ endTime, isList }: { endTime: string, isList?: boolean }) {
   const remaining = useCountdown(endTime);
   const urgency = getUrgency(remaining);
   if (urgency === 'ended') return null;
@@ -88,7 +89,7 @@ function AuctionTimer({ endTime }: { endTime: string }) {
   const s = String(totalSec % 60).padStart(2, '0');
 
   return (
-    <View style={styles.auctionTimerContainer}>
+    <View style={[styles.auctionTimerContainer, isList && styles.listTimerContainer]}>
       <View style={styles.auctionHeader}>
         <Ionicons name="time-outline" size={10} color="#fff" />
         <Text style={styles.auctionHeaderText}>ENDS IN</Text>
@@ -186,6 +187,7 @@ export default function ShopProductsScreen() {
   const [selected, setSelected] = useState<any | null>(null);
   const [tick, setTick] = useState(0);
   const [managingId, setManagingId] = useState<string | null>(null);
+  const [layout, setLayout] = useState<ViewLayout>('grid');
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -284,7 +286,7 @@ export default function ShopProductsScreen() {
     all:       items.length,
     scheduled: items.filter((i) => isActuallyScheduled(i)).length,
     auction:   items.filter((i) => i.selling_type === 'auction'    && isActuallyLive(i)).length,
-    posted:    items.filter((i) => i.selling_type === 'posted'     && isActuallyLive(i)).length,
+    posted:     items.filter((i) => i.selling_type === 'posted'     && isActuallyLive(i)).length,
     fast_flip: items.filter((i) => i.selling_type === 'fast_flip'  && isActuallyLive(i)).length,
   }), [items, tick]);
 
@@ -307,8 +309,11 @@ export default function ShopProductsScreen() {
           <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{shopData?.full_name?.toUpperCase() || 'MY SHOP'}</Text>
-        <TouchableOpacity style={styles.navBtn}>
-          <Ionicons name="share-outline" size={22} color="#111" />
+        <TouchableOpacity 
+          style={styles.navBtn}
+          onPress={() => setLayout(layout === 'grid' ? 'list' : 'grid')}
+        >
+          <Ionicons name={layout === 'grid' ? 'list-outline' : 'grid-outline'} size={24} color="#111" />
         </TouchableOpacity>
       </View>
 
@@ -354,12 +359,13 @@ export default function ShopProductsScreen() {
       </View>
 
       <FlatList
+        key={layout}
         data={filteredItems}
         keyExtractor={(item) => item.id}
-        numColumns={3}
+        numColumns={layout === 'grid' ? 3 : 1}
         showsVerticalScrollIndicator={false}
-        extraData={[tick, managingId]}
-        contentContainerStyle={filteredItems.length === 0 ? styles.emptyFlex : undefined}
+        extraData={[tick, managingId, layout]}
+        contentContainerStyle={filteredItems.length === 0 ? styles.emptyFlex : (layout === 'list' ? { paddingHorizontal: 16 } : undefined)}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons
@@ -382,6 +388,60 @@ export default function ShopProductsScreen() {
           const live   = isLive(item);
           const noTimer = hasNoTimer(item);
           const isManaging = managingId === item.id;
+
+          if (layout === 'list') {
+            return (
+              <TouchableOpacity
+                style={[styles.listItemRow, ended && { opacity: 0.6 }]}
+                onPress={() => setSelected(item)}
+                onLongPress={() => setManagingId(item.id)}
+              >
+                <View style={styles.listImageContainerSmall}>
+                  <Image source={{ uri: item.image_url }} style={styles.listImage} />
+                  {live && <AuctionTimer endTime={item.end_time} isList />}
+                </View>
+                
+                <View style={styles.listContentRow}>
+                  <View style={styles.listMainInfo}>
+                    <Text style={styles.listTitleRow} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.listMetaRow}>
+                        {item.selling_type === 'auction' ? `${item.bids_count ?? 0} bids` : `Qty: ${item.quantity ?? 1}`}
+                    </Text>
+                  </View>
+
+                  <View style={styles.listPriceInfo}>
+                    <Text style={styles.listPriceRow}>₱{item.price?.toLocaleString()}</Text>
+                    <View style={[
+                        styles.typeBadgeSmall,
+                        live && styles.typeBadgeLive,
+                        scheduled && styles.typeBadgeScheduled,
+                        ended && styles.typeBadgeEnded
+                    ]}>
+                        <Text style={[styles.badgeTextSmall, (live || scheduled || ended) && { color: '#fff' }]}>
+                        {live ? 'LIVE' : scheduled ? 'SCHED' : ended ? 'ENDED' : item.selling_type.toUpperCase()}
+                        </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {isManaging && (
+                  <View style={styles.adminOverlayListRow}>
+                    {!ended && (
+                        <TouchableOpacity style={styles.adminBtnSmall} onPress={() => { setManagingId(null); router.push({ pathname: '/(tabs)/profile/shop/addItem', params: { id: item.id } }); }}>
+                        <Ionicons name="create" size={18} color="#fff" />
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={[styles.adminBtnSmall, styles.adminBtnDelete]} onPress={() => handleDelete(item.id)}>
+                      <Ionicons name="trash" size={18} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adminCloseSmall} onPress={() => setManagingId(null)}>
+                        <Ionicons name="close" size={20} color="#111" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }
 
           return (
             <TouchableOpacity
@@ -425,45 +485,22 @@ export default function ShopProductsScreen() {
 
               {scheduled && item.start_time && <ScheduledBar startTime={item.start_time} />}
               {live && item.end_time && <AuctionTimer endTime={item.end_time} />}
-              {noTimer && (
-                <View style={styles.noTimerBar}>
-                  <Ionicons name="alert-circle-outline" size={9} color="#fff" />
-                  <Text style={styles.timerDigitText}>No end time set</Text>
-                </View>
-              )}
-
+              
               <View style={styles.cellOverlay}>
                 <Text style={styles.cellPrice}>₱{item.price?.toLocaleString()}</Text>
                 {item.selling_type === 'auction' && !scheduled && (
                   <Text style={styles.cellMeta}>{item.bids_count ?? 0} bids</Text>
-                )}
-                {scheduled && (
-                  <Text style={styles.cellMeta}>
-                    {item.selling_type === 'auction' ? 'Auction' : item.selling_type === 'fast_flip' ? 'Fast Flip' : 'Fixed'}
-                  </Text>
                 )}
               </View>
 
               {isManaging && (
                 <View style={styles.adminOverlay}>
                   {!ended && (
-                    <TouchableOpacity 
-                        style={styles.adminBtn} 
-                        onPress={() => {
-                            setManagingId(null);
-                            router.push({
-                            pathname: '/(tabs)/profile/shop/addItem',
-                            params: { id: item.id }
-                            });
-                        }}
-                    >
+                    <TouchableOpacity style={styles.adminBtn} onPress={() => { setManagingId(null); router.push({ pathname: '/(tabs)/profile/shop/addItem', params: { id: item.id } }); }}>
                         <Ionicons name="create" size={22} color="#fff" />
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity 
-                    style={[styles.adminBtn, styles.adminBtnDelete]} 
-                    onPress={() => handleDelete(item.id)}
-                  >
+                  <TouchableOpacity style={[styles.adminBtn, styles.adminBtnDelete]} onPress={() => handleDelete(item.id)}>
                     <Ionicons name="trash" size={22} color="#fff" />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.adminClose} onPress={() => setManagingId(null)}>
@@ -495,12 +532,11 @@ export default function ShopProductsScreen() {
                   )}
                   {isLive(selected)      && <View style={styles.modalLiveBadge}><View style={styles.liveDot} /><Text style={styles.badgeText}>LIVE</Text></View>}
                   {isEnded(selected)     && <View style={[styles.modalLiveBadge, styles.typeBadgeEnded]}><Text style={styles.badgeText}>AUCTION ENDED</Text></View>}
-                  {hasNoTimer(selected)  && <View style={[styles.modalLiveBadge, styles.typeBadgeNoTimer]}><Ionicons name="alert-circle-outline" size={11} color="#fff" /><Text style={styles.badgeText}>NO TIMER</Text></View>}
                 </View>
 
                 <View style={styles.modalBody}>
                   <Text style={styles.modalTitle}>{selected?.title}</Text>
-                  <Text style={styles.modalSeller}>{shopData?.full_name || shopData?.username || 'My Shop'}</Text>
+                  <Text style={styles.modalSeller}>{shopData?.full_name || 'My Shop'}</Text>
 
                   {isActuallyScheduled(selected) && selected?.start_time && (
                     <ModalScheduledRow startTime={selected.start_time} />
@@ -510,69 +546,21 @@ export default function ShopProductsScreen() {
                     <ModalCountdown endTime={selected.end_time} />
                   )}
 
-                  {hasNoTimer(selected) && (
-                    <View style={styles.noTimerWarning}>
-                      <Ionicons name="alert-circle-outline" size={16} color="#B45309" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.noTimerWarningTitle}>No end time set</Text>
-                        <Text style={styles.noTimerWarningDesc}>
-                          This auction has no duration. Edit the listing to add an end time.
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
                   <View style={styles.modalStats}>
                     <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>
-                        {selected?.selling_type === 'auction' ? 'Starting Bid' : 'Price'}
-                      </Text>
+                      <Text style={styles.statLabel}>{selected?.selling_type === 'auction' ? 'Starting Bid' : 'Price'}</Text>
                       <Text style={styles.statValue}>₱{selected?.price?.toLocaleString()}</Text>
                     </View>
                     {selected?.selling_type === 'auction' && !isActuallyScheduled(selected) && (
                       <View style={[styles.statBox, styles.statHighlight]}>
-                        <Text style={[styles.statLabel, { color: '#FF6B35' }]}>
-                          {isEnded(selected) ? 'Final Bid' : 'Current Bid'}
-                        </Text>
-                        <Text style={[styles.statValue, { color: '#FF6B35' }]}>
-                          ₱{(selected?.current_bid ?? selected?.price)?.toLocaleString()}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Qty</Text>
-                      <Text style={styles.statValue}>{selected?.quantity ?? 1}</Text>
-                    </View>
-                    {isActuallyScheduled(selected) && (
-                      <View style={styles.statBox}>
-                        <Text style={styles.statLabel}>Type</Text>
-                        <Text style={[styles.statValue, { fontSize: 11 }]}>
-                          {selected?.selling_type === 'auction' ? 'Auction' : selected?.selling_type === 'fast_flip' ? 'Fast Flip' : 'Fixed'}
-                        </Text>
+                        <Text style={[styles.statLabel, { color: '#FF6B35' }]}>{isEnded(selected) ? 'Final Bid' : 'Current Bid'}</Text>
+                        <Text style={[styles.statValue, { color: '#FF6B35' }]}>₱{(selected?.current_bid ?? selected?.price)?.toLocaleString()}</Text>
                       </View>
                     )}
                   </View>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.actionBtn,
-                      isEnded(selected)     && { backgroundColor: '#6B7280' },
-                    ]}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      setSelected(null);
-                      router.push(`/products/${selected?.id}`);
-                    }}
-                  >
-                    <Text style={styles.actionBtnText}>
-                      {isActuallyScheduled(selected)
-                        ? 'View Scheduled Listing'
-                        : isEnded(selected)
-                        ? 'View Auction Results'
-                        : selected?.selling_type === 'auction'
-                        ? 'Place a Bid'
-                        : 'View Listing'}
-                    </Text>
+                  <TouchableOpacity style={[styles.actionBtn, isEnded(selected) && { backgroundColor: '#6B7280' }]} onPress={() => { setSelected(null); router.push(`/products/${selected?.id}`); }}>
+                    <Text style={styles.actionBtnText}>View Listing</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -591,15 +579,15 @@ const styles = StyleSheet.create({
   navBtn: { padding: 4 },
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111' },
   filterScrollContent: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
-  filterTab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', minWidth: 80 },
-  filterTabActive: { backgroundColor: '#111', borderColor: '#111', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  filterTab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  filterTabActive: { backgroundColor: '#111', borderColor: '#111' },
   filterLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#111' },
   filterLabelActive: { color: '#fff' },
-  countBadge: { backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' },
+  countBadge: { backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   countBadgeActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   countText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#666' },
   countTextActive: { color: '#fff' },
-  cell: { width: ITEM_SIZE, height: ITEM_SIZE, backgroundColor: '#F2F2F2', position: 'relative', overflow: 'hidden', marginBottom: 1.5 },
+  cell: { width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE, backgroundColor: '#F2F2F2', position: 'relative', overflow: 'hidden', marginBottom: 1.5 },
   cellScheduled: { borderWidth: 2, borderColor: '#111' },
   cellImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   scheduledOverlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.05)' },
@@ -611,17 +599,16 @@ const styles = StyleSheet.create({
   typeBadgeScheduled: { backgroundColor: 'rgba(17,17,17,0.9)' },
   liveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
   badgeText: { fontFamily: 'Unbounded_700Bold', fontSize: 8, color: '#fff', letterSpacing: 0.5 },
-  auctionTimerContainer: { position: 'absolute', bottom: 34, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.85)', paddingVertical: 4, alignItems: 'center', justifyContent: 'center' },
+  auctionTimerContainer: { position: 'absolute', bottom: 34, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.85)', paddingVertical: 4, alignItems: 'center' },
+  listTimerContainer: { bottom: 0, paddingVertical: 2 },
   auctionHeader: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
-  auctionHeaderText: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#fff', opacity: 0.8, letterSpacing: 0.5 },
+  auctionHeaderText: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#fff', opacity: 0.8 },
   digitContainer: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   digitBox: { backgroundColor: '#333', borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, minWidth: 16, alignItems: 'center' },
   digitText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#fff' },
-  separator: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold', paddingBottom: 1 },
+  separator: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold' },
   scheduledBar: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(17,17,17,0.88)' },
-  scheduledBarText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff', letterSpacing: 0.4 },
-  noTimerBar: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4, backgroundColor: 'rgba(180,83,9,0.88)' },
-  timerDigitText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff', letterSpacing: 0.4 },
+  scheduledBarText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#fff' },
   cellOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 6, paddingVertical: 5 },
   cellPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 11, color: '#fff' },
   cellMeta: { fontFamily: 'Inter_400Regular', fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
@@ -629,6 +616,50 @@ const styles = StyleSheet.create({
   adminBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center' },
   adminBtnDelete: { backgroundColor: '#EF4444' },
   adminClose: { position: 'absolute', top: 5, right: 5 },
+  
+  // NEW LIST ROW STYLES (TABLE STYLE)
+  listItemRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    backgroundColor: '#fff', 
+    paddingVertical: 10, 
+    paddingHorizontal: 4,
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F2F2F2' 
+  },
+  listImageContainerSmall: { width: 50, height: 50, borderRadius: 6, overflow: 'hidden', backgroundColor: '#F9F9F9' },
+  listImage: { width: '100%', height: '100%' },
+  listContentRow: { 
+    flex: 1, 
+    flexDirection: 'row', 
+    marginLeft: 12, 
+    alignItems: 'center', 
+    justifyContent: 'space-between' 
+  },
+  listMainInfo: { flex: 1, justifyContent: 'center' },
+  listTitleRow: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#111', marginBottom: 2 },
+  listMetaRow: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#999' },
+  listPriceInfo: { alignItems: 'flex-end', justifyContent: 'center', minWidth: 80 },
+  listPriceRow: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#111', marginBottom: 4 },
+  
+  // ADMIN OVERLAY FOR TABLE ROW
+  adminOverlayListRow: { 
+    position: 'absolute', 
+    right: 0, 
+    top: 0, 
+    bottom: 0, 
+    backgroundColor: 'rgba(255,255,255,0.95)', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    paddingLeft: 15, 
+    paddingRight: 5 
+  },
+  adminBtnSmall: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center' },
+  adminCloseSmall: { padding: 4, marginLeft: 4 },
+
+  typeBadgeSmall: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '#F2F2F2' },
+  badgeTextSmall: { fontFamily: 'Unbounded_700Bold', fontSize: 7, color: '#111' },
   emptyFlex: { flex: 1 },
   emptyContainer: { alignItems: 'center', marginTop: 80, gap: 12 },
   emptyText: { textAlign: 'center', color: '#999', fontFamily: 'Inter_400Regular', fontSize: 14 },
@@ -648,9 +679,6 @@ const styles = StyleSheet.create({
   countdownValue: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111' },
   scheduledModalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F7F7F7', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
   startsInSub: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#666', marginTop: 2 },
-  noTimerWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 12, marginBottom: 14 },
-  noTimerWarningTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#92400E', marginBottom: 2 },
-  noTimerWarningDesc: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#B45309', lineHeight: 16 },
   modalStats: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   statBox: { flex: 1, backgroundColor: '#F7F7F7', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   statHighlight: { backgroundColor: '#FFF4EF' },
