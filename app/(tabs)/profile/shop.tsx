@@ -6,14 +6,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    AppState,
-    AppStateStatus,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  AppState,
+  AppStateStatus,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -144,7 +144,6 @@ export default function ShopScreen() {
         <View style={styles.navActions}>
           {status === 'approved' ? (
             <TouchableOpacity style={styles.navBtn}>
-              <Ionicons name="settings-outline" size={24} color="#111" />
             </TouchableOpacity>
           ) : (
             <View style={{ width: 32 }} />

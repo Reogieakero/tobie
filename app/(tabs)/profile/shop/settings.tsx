@@ -1,13 +1,56 @@
+import { supabase } from '@/lib/supabase';
+import { showToast } from '@/lib/toast'; // Ensure this is imported
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 const SettingsScreen = () => {
   const router = useRouter();
   const [isVacationMode, setIsVacationMode] = useState(false);
+  const [cooldownText, setCooldownText] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
-  const SettingItem = ({ icon, title, subtitle, onPress, type = 'link' }: any) => (
+  useEffect(() => {
+    fetchCooldownStatus();
+  }, []);
+
+  const fetchCooldownStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('shops')
+      .select('updated_at')
+      .eq('owner_id', user.id)
+      .maybeSingle();
+
+    if (data?.updated_at) {
+      const now = new Date();
+      const lastUpdate = new Date(data.updated_at);
+      const diffTime = now.getTime() - lastUpdate.getTime();
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+      if (diffTime < sevenDaysInMs) {
+        const remainingDays = 7 - Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        setCooldownText(`Next edit in ${remainingDays}d`);
+        setIsLocked(true);
+      } else {
+        setIsLocked(false);
+        setCooldownText(null);
+      }
+    }
+  };
+
+  const handleShopProfilePress = () => {
+    if (isLocked) {
+      showToast("Profile Locked", `You can edit your shop details again in ${cooldownText?.split(' ').pop()}`, "info");
+      return;
+    }
+    router.push('/(tabs)/profile/shop/edit-profile');
+  };
+
+  const SettingItem = ({ icon, title, subtitle, onPress, type = 'link', lockStatus }: any) => (
     <TouchableOpacity 
       style={styles.settingRow} 
       onPress={onPress} 
@@ -17,10 +60,15 @@ const SettingsScreen = () => {
         <Ionicons name={icon} size={22} color="#111" />
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.settingTitle}>{title}</Text>
+        <View style={styles.titleRow}>
+            <Text style={styles.settingTitle}>{title}</Text>
+            {lockStatus && (
+                <Text style={styles.lockText}>• {lockStatus}</Text>
+            )}
+        </View>
         {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
       </View>
-      {type === 'link' && <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />}
+      {type === 'link' && <Ionicons name="chevron-forward" size={20} color={lockStatus ? "#E2E8F0" : "#CBD5E1"} />}
       {type === 'switch' && (
         <Switch
           value={isVacationMode}
@@ -42,13 +90,12 @@ const SettingsScreen = () => {
           headerTitleAlign: 'center',
           headerTitle: () => <Text style={styles.headerTitle}>SHOP SETTINGS</Text>,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')}>
               <Ionicons name="arrow-back" size={24} color="#111" />
             </TouchableOpacity>
           ),
           headerRight: () => <View style={{ width: 24 }} />,
           headerLeftContainerStyle: { paddingLeft: 16 },
-          headerRightContainerStyle: { paddingRight: 16 },
         }} 
       />
 
@@ -58,7 +105,8 @@ const SettingsScreen = () => {
             icon="storefront-outline" 
             title="Shop Profile" 
             subtitle="Edit name, bio, and cover photo" 
-            onPress={() => router.push('/(tabs)/profile/shop/edit-profile')} // Add this
+            lockStatus={cooldownText} 
+            onPress={handleShopProfilePress} // Use the new handler here
         />
         <SettingItem 
           icon="notifications-outline" 
@@ -75,29 +123,14 @@ const SettingsScreen = () => {
           subtitle="Temporarily hide your listings" 
           type="switch"
         />
-        <SettingItem 
-          icon="card-outline" 
-          title="Payments" 
-          subtitle="Manage bank accounts and payouts" 
-        />
-        <SettingItem 
-          icon="location-outline" 
-          title="Pickup Address" 
-          subtitle="Where couriers collect items" 
-        />
+        <SettingItem icon="card-outline" title="Payments" subtitle="Manage bank accounts" />
+        <SettingItem icon="location-outline" title="Pickup Address" subtitle="Where couriers collect items" />
 
         <View style={styles.divider} />
 
         <Text style={styles.sectionLabel}>Support</Text>
-        <SettingItem 
-          icon="help-circle-outline" 
-          title="Help Center" 
-        />
-        <SettingItem 
-          icon="trash-outline" 
-          title="Delete Shop" 
-          onPress={() => {}}
-        />
+        <SettingItem icon="help-circle-outline" title="Help Center" />
+        <SettingItem icon="trash-outline" title="Delete Shop" />
       </ScrollView>
     </View>
   );
@@ -115,11 +148,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
+  settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
   iconWrapper: {
     width: 40,
     height: 40,
@@ -130,8 +159,14 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   textContainer: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#111' },
   settingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#64748B', marginTop: 2 },
+  lockText: { 
+    fontFamily: 'Inter_500Medium', 
+    fontSize: 12, 
+    color: '#EF4444' 
+  },
   divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
 });
 
