@@ -38,7 +38,7 @@ export const AuctionCard = ({ item, isDragging }: { item: any, isDragging?: bool
 
   return (
     <LinearGradient
-      colors={['#1A1A1A', '#050505']}
+      colors={['#2C2C2C', '#1A1A1A', '#0F0F0F']} 
       style={[styles.fullWidthContainer, isDragging && styles.dragging]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -110,17 +110,17 @@ const styles = StyleSheet.create({
     position: 'relative',
     minHeight: 160,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  dragging: {
-    opacity: 0.7,
-  },
+  dragging: { opacity: 0.7 },
   backgroundImage: {
     position: 'absolute',
     right: 0,
     bottom: -10,
     width: 140,
     height: 140,
-    opacity: 0.04,
+    opacity: 0.06,
   },
   contentContainer: { zIndex: 1 },
   header: {
@@ -137,25 +137,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-    marginRight: 6,
-  },
+  liveIndicator: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981', marginRight: 6 },
   endedDot: { backgroundColor: '#64748B' },
-  liveText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 9,
-    color: '#64748B',
-    letterSpacing: 1,
-  },
+  liveText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: '#64748B', letterSpacing: 1 },
   timerWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -168,45 +153,17 @@ const styles = StyleSheet.create({
   timerEnded: { backgroundColor: 'rgba(148, 163, 184, 0.05)' },
   timerText: { fontFamily: 'Inter_700Bold', fontSize: 11, color: '#F87171' },
   textMuted: { color: '#94A3B8' },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    marginBottom: 16,
-  },
-  dashboardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  divider: { height: 1, backgroundColor: 'rgba(255, 255, 255, 0.03)', marginBottom: 16 },
+  dashboardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   graphSection: { flex: 1.2 },
   graphContainer: { marginVertical: 6 },
-  statsContainer: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: 12,
-  },
+  statsContainer: { flex: 1, alignItems: 'flex-end', gap: 12 },
   priceSection: { alignItems: 'flex-end' },
-  label: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 8,
-    color: '#64748B',
-    letterSpacing: 1.2,
-    marginBottom: 2,
-  },
-  labelPrimary: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 8,
-    color: '#10B981',
-    letterSpacing: 1.2,
-    marginBottom: 2,
-  },
-  floorPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#475569' },
+  label: { fontFamily: 'Inter_600SemiBold', fontSize: 8, color: '#64748B', letterSpacing: 1.2, marginBottom: 2 },
+  labelPrimary: { fontFamily: 'Inter_700Bold', fontSize: 8, color: '#10B981', letterSpacing: 1.2, marginBottom: 2 },
+  floorPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#94A3B8' },
   targetPriceText: { fontFamily: 'Unbounded_700Bold', fontSize: 18, color: '#FFFFFF' },
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+  trendBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   trendText: { fontFamily: 'Inter_700Bold', fontSize: 10, color: '#10B981' },
 });
 

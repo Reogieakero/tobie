@@ -42,8 +42,14 @@ export default function LiveAuctionsScreen() {
   const renderItem = ({ item, drag, isActive }: RenderItemParams<any>) => (
     <ScaleDecorator>
       <TouchableOpacity
-        activeOpacity={1}
+        activeOpacity={0.9}
         onLongPress={drag}
+        onPress={() => {
+          router.push({
+            pathname: "/(tabs)/profile/shop/auction-logs",
+            params: { id: item.id, title: item.title }
+          });
+        }}
         disabled={isActive}
         style={[styles.rowItem, { backgroundColor: isActive ? 'transparent' : '#FFF' }]}
       >
@@ -63,17 +69,12 @@ export default function LiveAuctionsScreen() {
             <Text style={styles.headerTitle}>LIVE BIDDING</Text>
           ),
           headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              style={styles.navBtn}
-            >
+            <TouchableOpacity onPress={() => router.back()} style={styles.navBtn}>
               <Ionicons name="arrow-back" size={24} color="#111" />
             </TouchableOpacity>
           ),
           headerTitleAlign: 'center',
-          headerLeftContainerStyle: {
-            paddingLeft: 16
-          }
+          headerLeftContainerStyle: { paddingLeft: 16 }
         }} 
       />
 
@@ -98,17 +99,8 @@ export default function LiveAuctionsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  headerTitle: { 
-    fontFamily: 'Unbounded_700Bold', 
-    fontSize: 13, 
-    color: '#111',
-    letterSpacing: 1
-  },
-  listContent: { 
-    paddingHorizontal: 16, 
-    paddingTop: 10,
-    paddingBottom: 32 
-  },
+  headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#111', letterSpacing: 1 },
+  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 },
   rowItem: {
     borderRadius: 24,
     marginBottom: 16,
@@ -118,14 +110,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  emptyText: { 
-    textAlign: 'center', 
-    fontFamily: 'Inter_400Regular', 
-    color: '#888', 
-    marginTop: 40 
-  },
-  navBtn: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
+  emptyText: { textAlign: 'center', fontFamily: 'Inter_400Regular', color: '#888', marginTop: 40 },
+  navBtn: { justifyContent: 'center', alignItems: 'center' }
 });
