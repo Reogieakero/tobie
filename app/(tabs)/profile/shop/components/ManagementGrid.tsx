@@ -32,9 +32,12 @@ export const ManagementGrid = () => {
             <Text style={styles.actionText}>Inventory</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="megaphone-outline" size={22} color="#111" />
-          <Text style={styles.actionText}>Promote</Text>
+        <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push('/(tabs)/profile/shop/tips')} // Updated route
+            >
+            <Ionicons name="bulb-outline" size={22} color="#111" />
+            <Text style={styles.actionText}>Tips</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionCard}>

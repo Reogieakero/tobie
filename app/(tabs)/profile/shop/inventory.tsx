@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 40) / 2; // 16px margins + 8px gap
+const COLUMN_WIDTH = (width - 40) / 2;
 
 export default function InventoryScreen() {
   const router = useRouter();
@@ -64,7 +64,16 @@ export default function InventoryScreen() {
     <View style={styles.container}>
       <Stack.Screen 
         options={{
+          headerShown: true,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFF' },
+          headerTitleAlign: 'center',
           headerTitle: () => <Text style={styles.headerTitle}>INVENTORY</Text>,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
+              <Ionicons name="arrow-back" size={24} color="#111" />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity onPress={() => setIsGridView(!isGridView)} style={styles.headerBtn}>
               <Ionicons name={isGridView ? "reorder-three" : "grid-outline"} size={24} color="#111" />
@@ -100,8 +109,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 12, letterSpacing: 1.5 },
   headerBtn: { marginRight: 16 },
   listContent: { paddingHorizontal: 16, paddingTop: 16 },
-  
-  /* GRID VIEW - TikTok Shop Discovery Style */
   gridItem: { width: COLUMN_WIDTH, marginBottom: 24 },
   gridImageContainer: { 
     width: '100%', 
@@ -116,8 +123,6 @@ const styles = StyleSheet.create({
   overlayText: { fontFamily: 'Unbounded_700Bold', fontSize: 10, color: '#111' },
   gridPrice: { fontFamily: 'Unbounded_700Bold', fontSize: 15, color: '#111' },
   gridTitle: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 18 },
-
-  /* LIST VIEW - Clean Row Style */
   listItem: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -132,4 +137,4 @@ const styles = StyleSheet.create({
   listMeta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
   statusTag: { fontFamily: 'Inter_700Bold', fontSize: 9, textTransform: 'uppercase' },
   listQty: { fontFamily: 'Unbounded_700Bold', fontSize: 9, color: '#94A3B8' }
-});
+});0

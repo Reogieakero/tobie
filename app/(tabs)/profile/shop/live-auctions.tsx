@@ -69,7 +69,7 @@ export default function LiveAuctionsScreen() {
             <Text style={styles.headerTitle}>LIVE BIDDING</Text>
           ),
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop/my-shop')} style={styles.navBtn}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')} style={styles.navBtn}>
               <Ionicons name="arrow-back" size={24} color="#111" />
             </TouchableOpacity>
           ),
