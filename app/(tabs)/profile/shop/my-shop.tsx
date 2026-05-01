@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { LiveBidding } from './components/LiveBidding';
+import LiveBidding from './components/LiveBidding';
 import { ManagementGrid } from './components/ManagementGrid';
 import { RevenueCard } from './components/RevenueCard';
 import { ShopHeader } from './components/ShopHeader';

@@ -5,12 +5,11 @@ export function useAuctionLogs(itemId: string) {
   const [bids, setBids] = useState<any[]>([]);
   const [itemDetails, setItemDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState('');
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-
-      // Added end_time to the selection to support the countdown timer
       const { data: itemData } = await supabase
         .from('items')
         .select('image_url, price, target_bid, end_time')
@@ -44,6 +43,30 @@ export function useAuctionLogs(itemId: string) {
   };
 
   useEffect(() => {
+    if (!itemDetails?.end_time) return;
+
+    const timer = setInterval(() => {
+      const end = new Date(itemDetails.end_time).getTime();
+      const now = new Date().getTime();
+      const distance = end - now;
+
+      if (distance < 0) {
+        setTimeLeft('ENDED');
+        clearInterval(timer);
+        return;
+      }
+
+      const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((distance % (1000 * 60)) / 1000);
+
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [itemDetails?.end_time]);
+
+  useEffect(() => {
     if (!itemId) return;
     fetchLogs();
 
@@ -66,5 +89,5 @@ export function useAuctionLogs(itemId: string) {
     };
   }, [itemId]);
 
-  return { bids, itemDetails, loading, refresh: fetchLogs };
+  return { bids, itemDetails, loading, timeLeft, refresh: fetchLogs };
 }

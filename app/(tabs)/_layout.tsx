@@ -174,6 +174,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/live-auctions"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/components/AuctionCard"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/auction-logs"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/BidHistoryItem"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/inventory"                    options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/components/QuantityProductModal"                    options={{ href: null }} />
     </Tabs>
   );
 }

@@ -36,9 +36,9 @@ const TimerTicker = ({ endTime, onEnd }: { endTime: string; onEnd: () => void })
   return <Text style={styles.timerText}>{timeLeft}</Text>;
 };
 
-export const LiveBidding = () => {
+export default function LiveBidding() {
   const router = useRouter();
-  const { auctions, loading, refresh } = useLiveAuctions();
+  const { auctions, loading } = useLiveAuctions();
   const [displayAuctions, setDisplayAuctions] = useState<any[]>([]);
 
   useEffect(() => {
@@ -70,7 +70,14 @@ export const LiveBidding = () => {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.auctionList}>
         {displayAuctions.map((item) => (
-          <TouchableOpacity key={item.id} style={styles.auctionCard}>
+          <TouchableOpacity 
+            key={item.id} 
+            style={styles.auctionCard}
+            onPress={() => router.push({
+              pathname: '/(tabs)/profile/shop/auction-logs',
+              params: { id: item.id, title: item.title }
+            })}
+          >
             <View style={styles.cardHeaderRow}>
               <View style={styles.liveTag}>
                 <View style={styles.liveDot} />
@@ -109,7 +116,7 @@ export const LiveBidding = () => {
       </View>
     </>
   );
-};
+}
 
 const styles = StyleSheet.create({
   loader: { padding: 20, alignItems: 'center' },
@@ -134,5 +141,3 @@ const styles = StyleSheet.create({
   analyticsButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
   analyticsButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#111' },
 });
-
-export default LiveBidding;

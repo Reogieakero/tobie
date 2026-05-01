@@ -24,9 +24,12 @@ export const ManagementGrid = () => {
           <Text style={[styles.actionText, isListPressed && { color: '#fff' }]}>List Item</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="cube-outline" size={22} color="#111" />
-          <Text style={styles.actionText}>Inventory</Text>
+        <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push('/(tabs)/profile/shop/inventory')}
+            >
+            <Ionicons name="cube-outline" size={22} color="#111" />
+            <Text style={styles.actionText}>Inventory</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionCard}>
