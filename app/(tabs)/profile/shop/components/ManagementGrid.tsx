@@ -40,9 +40,12 @@ export const ManagementGrid = () => {
             <Text style={styles.actionText}>Tips</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="settings-outline" size={22} color="#111" />
-          <Text style={styles.actionText}>Settings</Text>
+        <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push('/(tabs)/profile/shop/settings')}
+          >
+            <Ionicons name="settings-outline" size={22} color="#111" />
+            <Text style={styles.actionText}>Settings</Text>
         </TouchableOpacity>
       </View>
     </>

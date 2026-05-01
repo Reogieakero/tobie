@@ -61,7 +61,7 @@ const TipScreen = () => {
           headerTitleAlign: 'center',
           headerTitle: () => <Text style={styles.headerTitle}>TIPS</Text>,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/profile/shop')}>
               <Ionicons name="arrow-back" size={24} color="#111" />
             </TouchableOpacity>
           ),

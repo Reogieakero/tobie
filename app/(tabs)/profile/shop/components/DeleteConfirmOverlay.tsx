@@ -28,7 +28,7 @@ export default function DeleteConfirmOverlay({ count, onCancel, onConfirm }: Pro
 
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 1000, paddingHorizontal: 16 },
-  card: { width: '100%', backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5 },
+  card: { width: '100%', backgroundColor: '#fff', borderRadius: 8, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5 },
   title: { fontFamily: 'Unbounded_700Bold', fontSize: 14, color: '#111', marginBottom: 4 },
   sub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#666', marginBottom: 20 },
   actions: { flexDirection: 'row', gap: 12 },
