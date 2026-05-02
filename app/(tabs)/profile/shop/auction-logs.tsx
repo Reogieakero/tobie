@@ -2,9 +2,8 @@ import BidHistoryItem from '@/app/(tabs)/profile/shop/components/BidHistoryItem'
 import { useAuctionLogs } from '@/hooks/useAuctionLogs';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -14,12 +13,15 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import SellConfirmOverlay from '../../home/components/SellConfirmOverlay';
 
 const { width } = Dimensions.get('window');
 
 export default function AuctionLogsScreen() {
     const router = useRouter();
     const { id, title } = useLocalSearchParams();
+    const [sellConfirmVisible, setSellConfirmVisible] = useState(false);
+    
     const { 
         bids, itemDetails, loading, timeLeft, 
         refresh, isOwner, sellAuction, isSubmitting 
@@ -30,14 +32,12 @@ export default function AuctionLogsScreen() {
 
     const handleSellPress = () => {
         if (!highestBidder || isSold) return;
-        Alert.alert(
-            "CONFIRM SALE",
-            `Sell to ${highestBidder.profiles.first_name} for ₱${highestBidder.amount.toLocaleString()}?`,
-            [
-                { text: "CANCEL", style: "cancel" },
-                { text: "CONFIRM", onPress: sellAuction }
-            ]
-        );
+        setSellConfirmVisible(true);
+    };
+
+    const onConfirmSale = async () => {
+        setSellConfirmVisible(false);
+        await sellAuction();
     };
 
     return (
@@ -107,6 +107,14 @@ export default function AuctionLogsScreen() {
                     showsVerticalScrollIndicator={false}
                 />
             </SafeAreaView>
+
+            <SellConfirmOverlay 
+                visible={sellConfirmVisible}
+                bidderName={highestBidder?.profiles?.first_name || 'Bidder'}
+                amount={highestBidder?.amount || 0}
+                onCancel={() => setSellConfirmVisible(false)}
+                onConfirm={onConfirmSale}
+            />
 
             {isOwner ? (
                 <TouchableOpacity 
