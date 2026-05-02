@@ -11,7 +11,6 @@ interface PostCardProps {
   onLike: (id: string) => void;
 }
 
-// 1. Remove "export" from the const definition
 const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
   const router = useRouter();
   const rawType = (item.selling_type || '').trim().toLowerCase();
@@ -48,20 +47,24 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
           ) : (
-            <View style={styles.avatarPlaceholder}><Ionicons name="person" size={16} color="#94A3B8" /></View>
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={16} color="#94A3B8" />
+            </View>
           )}
           <View>
             <Text style={styles.postUserName}>{fullName}</Text>
             <Text style={styles.shopLink}>{shopDisplayLink}</Text>
           </View>
         </View>
-        <TouchableOpacity><Ionicons name="ellipsis-horizontal" size={20} color="#64748B" /></TouchableOpacity>
+        <TouchableOpacity>
+          <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
+        </TouchableOpacity>
       </View>
 
       <View>
         <Image source={{ uri: item.image_url }} style={styles.postImage} resizeMode="cover" />
         <View style={[styles.statusTag, statusStyle]}>
-          {(isAuction && isActive) && <View style={styles.liveDot} />}
+          {isAuction && isActive && <View style={styles.liveDot} />}
           <Text style={styles.tagText}>{statusLabel}</Text>
         </View>
       </View>
@@ -69,58 +72,179 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
       <View style={styles.actionRow}>
         <View style={styles.leftActions}>
           <TouchableOpacity onPress={() => onLike(item.id)} activeOpacity={0.6}>
-            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={28} color={isLiked ? "#EF4444" : "#1A1A1A"} />
+            <Ionicons
+              name={isLiked ? 'heart' : 'heart-outline'}
+              size={28}
+              color={isLiked ? '#EF4444' : '#1A1A1A'}
+            />
           </TouchableOpacity>
-          <TouchableOpacity><Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+          <TouchableOpacity>
+            <Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
           {isAuction && isActive ? (
-            <TouchableOpacity onPress={() => router.push({ pathname: "/home/bidding", params: { itemId: item.id } })}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/home/bidding', params: { itemId: item.id } })}
+            >
               <MaterialCommunityIcons name="gavel" size={28} color="#1A1A1A" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity><Ionicons name="paper-plane-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+            <TouchableOpacity>
+              <Ionicons name="paper-plane-outline" size={24} color="#1A1A1A" />
+            </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity><Ionicons name="bookmark-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+        <TouchableOpacity>
+          <Ionicons name="bookmark-outline" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.postContent}>
         <Text style={styles.likesText}>{(Number(item.likes_count) || 0).toLocaleString()} likes</Text>
-        <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.priceHighlight}>
-          {isAuction ? 'Starting Bid ' : 'Price '}
-          <Text style={styles.boldPrice}>₱{Number(item.price).toLocaleString()}</Text>
-        </Text>
+        
+        {/* Updated Title and Price Row */}
+        <View style={styles.titlePriceRow}>
+          <Text style={styles.productTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View style={styles.priceContainer}>
+             <Text style={styles.priceLabel}>{isAuction ? 'Starting Bid' : 'Price'}</Text>
+             <Text style={styles.boldPrice}>₱{Number(item.price).toLocaleString()}</Text>
+          </View>
+        </View>
+
         <Text style={styles.dateText}>{new Date(item.created_at).toLocaleDateString()}</Text>
       </View>
     </View>
   );
 });
 
-// 2. Add the default export here
 export default PostCard;
 
 const styles = StyleSheet.create({
-  postCard: { marginBottom: 10, backgroundColor: '#FFF' },
-  postHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 },
-  userInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarPlaceholder: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  avatarImage: { width: 34, height: 34, borderRadius: 17 },
-  postUserName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#1A1A1A' },
-  shopLink: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#3B82F6' },
-  postImage: { width: width, height: width, backgroundColor: '#F8FAFC' },
-  statusTag: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4, zIndex: 10 },
+  postCard: { 
+    backgroundColor: '#FFF', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 15 
+  },
+  postHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 12 
+  },
+  userInfo: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10 
+  },
+  avatarPlaceholder: { 
+    width: 34, 
+    height: 34, 
+    borderRadius: 17, 
+    backgroundColor: '#F1F5F9', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  avatarImage: { 
+    width: 34, 
+    height: 34, 
+    borderRadius: 17 
+  },
+  postUserName: { 
+    fontFamily: 'Inter_600SemiBold', 
+    fontSize: 13, 
+    color: '#1A1A1A' 
+  },
+  shopLink: { 
+    fontFamily: 'Inter_400Regular', 
+    fontSize: 11, 
+    color: '#3B82F6' 
+  },
+  postImage: { 
+    width: width, 
+    height: width, 
+    backgroundColor: '#F8FAFC' 
+  },
+  statusTag: { 
+    position: 'absolute', 
+    top: 12, 
+    left: 12, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 4, 
+    gap: 4, 
+    zIndex: 10 
+  },
   tagLive: { backgroundColor: '#EF4444' },
   tagActive: { backgroundColor: '#10B981' },
   tagEnded: { backgroundColor: '#64748B' },
   tagScheduled: { backgroundColor: '#F59E0B' },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' },
-  tagText: { color: '#FFF', fontFamily: 'Inter_700Bold', fontSize: 10 },
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
-  leftActions: { flexDirection: 'row', gap: 16, alignItems: 'center' },
-  postContent: { paddingHorizontal: 12, paddingBottom: 10 },
-  likesText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#1A1A1A', marginBottom: 2 },
-  productTitle: { fontFamily: 'Inter_700Bold', fontSize: 15, color: '#1A1A1A', marginBottom: 2, textTransform: 'uppercase' },
-  priceHighlight: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#64748B', marginBottom: 4 },
-  boldPrice: { fontFamily: 'Unbounded_700Bold', color: '#1A1A1A', fontSize: 16 },
-  dateText: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#94A3B8', marginTop: 2 }
+  liveDot: { 
+    width: 6, 
+    height: 6, 
+    borderRadius: 3, 
+    backgroundColor: '#FFF' 
+  },
+  tagText: { 
+    color: '#FFF', 
+    fontFamily: 'Inter_700Bold', 
+    fontSize: 10 
+  },
+  actionRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 12, 
+    paddingVertical: 10 
+  },
+  leftActions: { 
+    flexDirection: 'row', 
+    gap: 16, 
+    alignItems: 'center' 
+  },
+  postContent: { 
+    paddingHorizontal: 12 
+  },
+  likesText: { 
+    fontFamily: 'Inter_600SemiBold', 
+    fontSize: 13, 
+    color: '#1A1A1A', 
+    marginBottom: 4 
+  },
+  titlePriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10
+  },
+  productTitle: { 
+    flex: 1, // Takes up available space
+    fontFamily: 'Inter_700Bold', 
+    fontSize: 15, 
+    color: '#1A1A1A', 
+    marginBottom: 2 
+    // textTransform removed to respect user input
+  },
+  priceContainer: {
+    alignItems: 'flex-end'
+  },
+  priceLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: '#64748B',
+    textTransform: 'uppercase'
+  },
+  boldPrice: { 
+    fontFamily: 'Unbounded_700Bold', 
+    color: '#1A1A1A', 
+    fontSize: 14 
+  },
+  dateText: { 
+    fontFamily: 'Inter_400Regular', 
+    fontSize: 11, 
+    color: '#94A3B8', 
+    marginTop: 4 
+  }
 });
