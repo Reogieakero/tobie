@@ -26,9 +26,10 @@ export default function AuctionLogsScreen() {
     } = useAuctionLogs(id as string);
 
     const highestBidder = bids.length > 0 ? bids[0] : null;
+    const isSold = itemDetails?.status === 'sold';
 
     const handleSellPress = () => {
-        if (!highestBidder) return;
+        if (!highestBidder || isSold) return;
         Alert.alert(
             "CONFIRM SALE",
             `Sell to ${highestBidder.profiles.first_name} for ₱${highestBidder.amount.toLocaleString()}?`,
@@ -69,13 +70,16 @@ export default function AuctionLogsScreen() {
                         <View style={styles.vDivider} />
                         <StatBlock label="TARGET" value={`₱${Number(itemDetails?.target_bid || 0).toLocaleString()}`} color="#10B981" />
                         <View style={styles.vDivider} />
-                        <StatBlock label="REMAINING" value={timeLeft || '--:--:--'} color="#F59E0B" flex={1.5} />
+                        <StatBlock label="STATUS" value={timeLeft || '--:--:--'} color={isSold ? "#10B981" : "#F59E0B"} flex={1.5} />
                     </View>
                 </View>
 
                 <View style={styles.titleArea}>
                     <View style={styles.liveIndicator}>
-                        <View style={styles.dot} /><Text style={styles.liveText}>LIVE ACTIVITY</Text>
+                        <View style={[styles.dot, isSold && { backgroundColor: '#10B981' }]} />
+                        <Text style={[styles.liveText, isSold && { color: '#10B981' }]}>
+                            {isSold ? 'AUCTION SOLD' : 'LIVE ACTIVITY'}
+                        </Text>
                     </View>
                     <Text style={styles.itemTitle}>{title || itemDetails?.title || "Auction Item"}</Text>
                 </View>
@@ -106,19 +110,21 @@ export default function AuctionLogsScreen() {
 
             {isOwner ? (
                 <TouchableOpacity 
-                    style={[styles.fab, styles.sellFab, (!highestBidder || isSubmitting) && { opacity: 0.5 }]} 
+                    style={[styles.fab, styles.sellFab, (!highestBidder || isSubmitting || isSold) && { opacity: 0.5 }]} 
                     onPress={handleSellPress}
-                    disabled={isSubmitting || !highestBidder}
+                    disabled={isSubmitting || !highestBidder || isSold}
                 >
-                    <Ionicons name="checkmark-circle" size={32} color="#FFF" />
+                    <Ionicons name={isSold ? "bag-check" : "checkmark-circle"} size={32} color="#FFF" />
                 </TouchableOpacity>
             ) : (
-                <TouchableOpacity 
-                    style={styles.fab} 
-                    onPress={() => router.push({ pathname: '/home/bidding', params: { itemId: id } })}
-                >
-                    <Ionicons name="hammer-outline" size={26} color="#FFF" />
-                </TouchableOpacity>
+                !isSold && (
+                    <TouchableOpacity 
+                        style={styles.fab} 
+                        onPress={() => router.push({ pathname: '/home/bidding', params: { itemId: id } })}
+                    >
+                        <Ionicons name="hammer-outline" size={26} color="#FFF" />
+                    </TouchableOpacity>
+                )
             )}
         </View>
     );

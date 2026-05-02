@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
+    Alert,
     FlatList, KeyboardAvoidingView, Modal, Platform,
     SafeAreaView, StyleSheet, Text, TouchableOpacity, View
 } from 'react-native';
@@ -22,9 +23,23 @@ export default function BiddingScreen() {
         bidInput, setBidInput,
         isSubmitting, currentHighest, currentMinBid,
         highestBidder, handleOpenModal, submitBid, sellAuction 
-    } = useBidding(itemId);
+    } = useBidding(itemId as string);
 
     if (loading || !item) return <LoadingOverlay message="LOADING..." />;
+
+    const isSold = item?.status === 'sold';
+
+    const handleSellPress = () => {
+        if (!highestBidder) return;
+        Alert.alert(
+            "CONFIRM SALE",
+            `Sell to ${highestBidder.profiles?.first_name} for ₱${highestBidder.amount.toLocaleString()}?`,
+            [
+                { text: "CANCEL", style: "cancel" },
+                { text: "CONFIRM", onPress: sellAuction }
+            ]
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -32,7 +47,7 @@ export default function BiddingScreen() {
                 headerShown: true, 
                 headerTitle: () => (
                     <Text style={styles.headerTitleText}>
-                        {isOwner ? 'MANAGE AUCTION' : 'PLACE A BID'}
+                        {isSold ? 'AUCTION SOLD' : (isOwner ? 'MANAGE AUCTION' : 'PLACE A BID')}
                     </Text>
                 ),
                 headerTitleAlign: 'center',
@@ -67,16 +82,18 @@ export default function BiddingScreen() {
 
             {isOwner ? (
                 <TouchableOpacity 
-                    style={[styles.fab, styles.sellFab, !highestBidder && { opacity: 0.5 }]} 
-                    onPress={sellAuction}
-                    disabled={isSubmitting || !highestBidder}
+                    style={[styles.fab, styles.sellFab, (!highestBidder || isSubmitting || isSold) && { opacity: 0.5 }]} 
+                    onPress={handleSellPress}
+                    disabled={isSubmitting || !highestBidder || isSold}
                 >
-                    <Ionicons name="checkmark-circle" size={30} color="#FFF" />
+                    <Ionicons name={isSold ? "bag-check" : "checkmark-circle"} size={30} color="#FFF" />
                 </TouchableOpacity>
             ) : (
-                <TouchableOpacity style={styles.fab} onPress={handleOpenModal}>
-                    <Ionicons name="hammer-outline" size={26} color="#FFF" />
-                </TouchableOpacity>
+                !isSold && (
+                    <TouchableOpacity style={styles.fab} onPress={handleOpenModal}>
+                        <Ionicons name="hammer-outline" size={26} color="#FFF" />
+                    </TouchableOpacity>
+                )
             )}
 
             <Modal visible={modalVisible} transparent animationType="slide">
@@ -90,14 +107,14 @@ export default function BiddingScreen() {
                         </View>
                         <View style={styles.modalPriceSummary}>
                            <View style={styles.summaryItem}>
-                               <Text style={styles.summaryLabel}>Current Bid</Text>
-                               <Text style={styles.summaryValue}>₱{currentHighest.toLocaleString()}</Text>
+                                <Text style={styles.summaryLabel}>Current Bid</Text>
+                                <Text style={styles.summaryValue}>₱{currentHighest.toLocaleString()}</Text>
                            </View>
                            <View style={[styles.summaryItem, { alignItems: 'flex-end' }]}>
-                               <Text style={styles.summaryLabel}>Min. Required</Text>
-                               <Text style={[styles.summaryValue, { color: '#10B981' }]}>
-                                   ₱{currentMinBid.toLocaleString()}
-                               </Text>
+                                <Text style={styles.summaryLabel}>Min. Required</Text>
+                                <Text style={[styles.summaryValue, { color: '#10B981' }]}>
+                                    ₱{currentMinBid.toLocaleString()}
+                                </Text>
                            </View>
                         </View>
                         <View style={styles.animatedInputContainer}>
@@ -126,25 +143,8 @@ const styles = StyleSheet.create({
     listContent: { paddingBottom: 100 },
     emptyContainer: { padding: 40, alignItems: 'center' },
     emptyText: { color: '#94A3B8' },
-    fab: { 
-        position: 'absolute', 
-        bottom: 30, 
-        right: 16, 
-        width: 60, 
-        height: 60, 
-        borderRadius: 30, 
-        backgroundColor: '#111', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
-    sellFab: { 
-        backgroundColor: '#10B981' 
-    },
+    fab: { position: 'absolute', bottom: 30, right: 16, width: 60, height: 60, borderRadius: 30, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+    sellFab: { backgroundColor: '#10B981' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

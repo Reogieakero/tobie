@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { showToast } from '@/lib/toast';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useAuctionLogs(itemId: string) {
   const router = useRouter();
@@ -11,6 +11,8 @@ export function useAuctionLogs(itemId: string) {
   const [timeLeft, setTimeLeft] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const autoSellTriggered = useRef(false);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -19,7 +21,7 @@ export function useAuctionLogs(itemId: string) {
 
       const { data: itemData } = await supabase
         .from('items')
-        .select('image_url, price, target_bid, end_time, user_id, title')
+        .select('image_url, price, target_bid, end_time, user_id, title, status')
         .eq('id', itemId)
         .single();
 
@@ -32,11 +34,7 @@ export function useAuctionLogs(itemId: string) {
           amount,
           created_at,
           bidder_id,
-          profiles!bidder_id (
-            first_name,
-            last_name,
-            avatar_url
-          )
+          profiles!bidder_id (first_name, last_name, avatar_url)
         `)
         .eq('item_id', itemId)
         .order('amount', { ascending: false });
@@ -50,11 +48,13 @@ export function useAuctionLogs(itemId: string) {
     }
   }, [itemId]);
 
-  const sellAuction = async () => {
-    if (bids.length === 0) return;
+  const sellAuction = useCallback(async () => {
+    if (bids.length === 0 || itemDetails?.status === 'sold') return;
+    
     try {
       setIsSubmitting(true);
       const highestBid = bids[0];
+
       const { error } = await supabase
         .from('items')
         .update({ 
@@ -64,34 +64,54 @@ export function useAuctionLogs(itemId: string) {
         })
         .eq('id', itemId);
 
-      if (error) throw error;
-      showToast("SUCCESS", "Item sold to highest bidder!", "success");
-      router.back();
+      if (error) {
+        if (error.message.includes('final_price')) {
+            showToast("DATABASE ERROR", "Please add 'final_price' column to items table.", "danger");
+        } else {
+            throw error;
+        }
+        return;
+      }
+      
+      showToast("SUCCESS", "Item successfully sold!", "success");
+      fetchLogs(); 
     } catch (error: any) {
       showToast("ERROR", error.message, "danger");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [bids, itemId, itemDetails?.status, fetchLogs]);
 
   useEffect(() => {
-    if (!itemDetails?.end_time) return;
+    if (!itemDetails?.end_time || itemDetails?.status === 'sold') {
+        if (itemDetails?.status === 'sold') setTimeLeft('SOLD');
+        return;
+    }
+
     const timer = setInterval(() => {
       const end = new Date(itemDetails.end_time).getTime();
       const now = new Date().getTime();
       const distance = end - now;
-      if (distance < 0) {
+
+      if (distance <= 0) {
         setTimeLeft('ENDED');
         clearInterval(timer);
+        
+        if (!autoSellTriggered.current && bids.length > 0) {
+            autoSellTriggered.current = true;
+            sellAuction();
+        }
         return;
       }
+
       const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((distance % (1000 * 60)) / 1000);
       setTimeLeft(`${h}h ${m}m ${s}s`);
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [itemDetails?.end_time]);
+  }, [itemDetails?.end_time, itemDetails?.status, bids, sellAuction]);
 
   useEffect(() => {
     if (!itemId) return;
@@ -99,6 +119,7 @@ export function useAuctionLogs(itemId: string) {
     const channel = supabase
       .channel(`live-logs-${itemId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bids', filter: `item_id=eq.${itemId}` }, () => fetchLogs())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'items', filter: `id=eq.${itemId}` }, () => fetchLogs())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [itemId, fetchLogs]);

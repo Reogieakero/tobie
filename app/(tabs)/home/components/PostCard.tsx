@@ -43,7 +43,6 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        {/* User Info on the Left */}
         <View style={styles.userInfo}>
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
@@ -58,7 +57,6 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
           </View>
         </View>
 
-        {/* Tag placed on the Right (where the 3 dots were) */}
         <View style={[styles.statusTag, statusStyle]}>
           {isAuction && isActive && <View style={styles.liveDot} />}
           <Text style={styles.tagText}>{statusLabel}</Text>
@@ -78,21 +76,16 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
               color={isLiked ? '#EF4444' : '#1A1A1A'}
             />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          {isAuction && isActive ? (
+          
+          {isAuction && isActive && (
             <TouchableOpacity
               onPress={() => router.push({ pathname: '/home/bidding', params: { itemId: item.id } })}
             >
               <MaterialCommunityIcons name="gavel" size={28} color="#1A1A1A" />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity>
-              <Ionicons name="paper-plane-outline" size={24} color="#1A1A1A" />
-            </TouchableOpacity>
           )}
         </View>
+        
         <TouchableOpacity>
           <Ionicons name="bookmark-outline" size={24} color="#1A1A1A" />
         </TouchableOpacity>

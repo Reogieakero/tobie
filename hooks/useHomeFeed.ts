@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const PAGE_SIZE = 10;
 
@@ -9,6 +9,8 @@ export function useHomeFeed(showOwnProducts: boolean) {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  const isFetching = useRef(false);
 
   const shuffleArray = (array: any[]) => {
     const newArray = [...array];
@@ -28,10 +30,13 @@ export function useHomeFeed(showOwnProducts: boolean) {
   }, []);
 
   const fetchItems = useCallback(async (isRefreshing = false) => {
-    if (loading) return;
+    if (isFetching.current) return;
     
     try {
-      setLoading(true);
+      isFetching.current = true;
+      if (isRefreshing) setRefreshing(true);
+      else setLoading(true);
+
       const currentPage = isRefreshing ? 0 : page;
       const start = currentPage * PAGE_SIZE;
       const end = start + PAGE_SIZE - 1;
@@ -58,24 +63,21 @@ export function useHomeFeed(showOwnProducts: boolean) {
 
       if (data && data.length > 0) {
         const processedData = shuffleArray(data);
-        setItems(prev => (isRefreshing ? processedData : [...prev, ...processedData]));
+        setItems(prev => isRefreshing ? processedData : [...prev, ...processedData]);
         setPage(currentPage + 1);
-      } else {
-        if (!isRefreshing && items.length > 0) {
-          setPage(0);
-          setTimeout(() => fetchItems(false), 10);
-        }
+      } else if (!isRefreshing && items.length > 0) {
+        setPage(0);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isFetching.current = false;
     }
-  }, [page, loading, showOwnProducts, currentUserId, items.length]);
+  }, [page, showOwnProducts, currentUserId, items.length]);
 
   const handleRefresh = () => {
-    setRefreshing(true);
     setPage(0);
     fetchItems(true);
   };
