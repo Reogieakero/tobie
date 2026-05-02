@@ -180,6 +180,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/tips"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/settings"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/edit-profile"                    options={{ href: null }} />
+      <Tabs.Screen name="home/bidding"                    options={{ href: null }} />
     </Tabs>
   );
 }

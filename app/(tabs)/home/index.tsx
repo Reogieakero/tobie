@@ -1,272 +1,224 @@
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useHomeFeed } from '@/hooks/useHomeFeed';
 import { supabase } from '@/lib/supabase';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Unbounded_700Bold, Unbounded_800ExtraBold, useFonts } from '@expo-google-fonts/unbounded';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  Image,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.72;
-
-// ─── Mock data (replace with Supabase queries later) ───────────────────────
-const LIVE_AUCTIONS = [
-  { id: '1', title: 'Rolex Submariner 2023', category: 'Watches', currentBid: 12500, endsIn: '2h 14m', bids: 23, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80' },
-  { id: '2', title: 'Air Jordan 1 OG Chicago', category: 'Sneakers', currentBid: 3800, endsIn: '45m', bids: 41, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80' },
-  { id: '3', title: 'Hermès Birkin 35 Togo', category: 'Bags', currentBid: 28000, endsIn: '5h 02m', bids: 9, image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80' },
-];
-
-const ENDING_SOON = [
-  { id: '4', title: 'Vintage Leica M3', currentBid: 4200, endsIn: '12m', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=300&q=80' },
-  { id: '5', title: 'Pokémon 1st Ed. Charizard', currentBid: 9100, endsIn: '28m', image: 'https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?w=300&q=80' },
-  { id: '6', title: 'Fender Stratocaster \'62', currentBid: 6750, endsIn: '38m', image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=300&q=80' },
-];
-
-const CATEGORIES = [
-  { id: 'watches', label: 'Watches', icon: 'time-outline' },
-  { id: 'sneakers', label: 'Sneakers', icon: 'footsteps-outline' },
-  { id: 'bags', label: 'Bags', icon: 'bag-outline' },
-  { id: 'art', label: 'Art', icon: 'color-palette-outline' },
-  { id: 'cards', label: 'Cards', icon: 'card-outline' },
-];
-// ───────────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { items, setItems, loading, refreshing, refresh, loadMore } = useHomeFeed();
   const [userName, setUserName] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('watches');
+  const [likedItems, setLikedItems] = useState<Record<string, boolean>>({});
 
   let [fontsLoaded] = useFonts({
     Unbounded_800ExtraBold,
     Unbounded_700Bold,
     Inter_400Regular,
-    Inter_500Medium,
     Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   useEffect(() => {
+    let mounted = true;
+    const fetchUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && mounted) {
+          const { data: profile } = await supabase.from('profiles').select('first_name').eq('id', user.id).single();
+          if (mounted) setUserName(profile?.first_name || user.email?.split('@')[0] || 'User');
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    };
     fetchUser();
+    return () => { mounted = false; };
   }, []);
 
-  async function fetchUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
-      setUserName(name);
+  const handleLike = useCallback(async (itemId: string) => {
+    const isCurrentlyLiked = likedItems[itemId];
+    setLikedItems(prev => ({ ...prev, [itemId]: !isCurrentlyLiked }));
+    setItems(prev => prev.map(item => 
+      item.id === itemId 
+        ? { ...item, likes_count: (Number(item.likes_count) || 0) + (isCurrentlyLiked ? -1 : 1) }
+        : item
+    ));
+
+    try {
+      const { error } = await supabase.rpc('increment_likes', { item_id: itemId });
+      if (error) throw error;
+    } catch (e) {
+      setLikedItems(prev => ({ ...prev, [itemId]: isCurrentlyLiked }));
     }
-  }
+  }, [likedItems, setItems]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchUser();
-    setRefreshing(false);
-  };
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    const rawType = (item.selling_type || '').trim().toLowerCase();
+    const rawStatus = (item.status || '').trim().toLowerCase();
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.replace('/sign-in');
-  }
+    const isAuction = rawType === 'auction';
+    const isActive = rawStatus === 'active';
+    const isSold = rawStatus === 'sold' || rawStatus === 'ended';
+    const isScheduled = rawStatus === 'scheduled';
+    const isLiked = !!likedItems[item.id];
+    
+    let statusLabel = 'AVAILABLE';
+    let statusStyle = styles.tagActive;
+
+    if (isSold) {
+      statusLabel = rawStatus.toUpperCase();
+      statusStyle = styles.tagEnded;
+    } else if (isScheduled) {
+      statusLabel = 'UPCOMING';
+      statusStyle = styles.tagScheduled;
+    } else if (isAuction && isActive) {
+      statusLabel = 'LIVE AUCTION';
+      statusStyle = styles.tagLive;
+    }
+
+    const profile = item.profiles;
+    const shop = profile?.shop_applications?.[0];
+    const fullName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'User';
+    const shopDisplayLink = shop?.custom_link || (shop?.shop_slug ? `@${shop.shop_slug}` : '@tobie_user');
+
+    return (
+      <View style={styles.postCard}>
+        <View style={styles.postHeader}>
+          <View style={styles.userInfo}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}><Ionicons name="person" size={16} color="#94A3B8" /></View>
+            )}
+            <View>
+              <Text style={styles.postUserName}>{fullName}</Text>
+              <Text style={styles.shopLink}>{shopDisplayLink}</Text>
+            </View>
+          </View>
+          <TouchableOpacity><Ionicons name="ellipsis-horizontal" size={20} color="#64748B" /></TouchableOpacity>
+        </View>
+
+        <View>
+          <Image source={{ uri: item.image_url }} style={styles.postImage} resizeMode="cover" />
+          <View style={[styles.statusTag, statusStyle]}>
+            {(isAuction && isActive) && <View style={styles.liveDot} />}
+            <Text style={styles.tagText}>{statusLabel}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          <View style={styles.leftActions}>
+            <TouchableOpacity onPress={() => handleLike(item.id)} activeOpacity={0.6}>
+              <Ionicons name={isLiked ? "heart" : "heart-outline"} size={28} color={isLiked ? "#EF4444" : "#1A1A1A"} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity><Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+            
+            {isAuction && isActive ? (
+              <TouchableOpacity 
+                onPress={() => router.push({
+                  pathname: "/home/bidding", // Updated to match your file structure
+                  params: { itemId: item.id }
+                })}
+              >
+                <MaterialCommunityIcons name="gavel" size={28} color="#1A1A1A" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity><Ionicons name="paper-plane-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity><Ionicons name="bookmark-outline" size={24} color="#1A1A1A" /></TouchableOpacity>
+        </View>
+
+        <View style={styles.postContent}>
+          <Text style={styles.likesText}>{(Number(item.likes_count) || 0).toLocaleString()} likes</Text>
+          <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.priceHighlight}>
+            {isAuction ? 'Starting Bid ' : 'Price '}
+            <Text style={styles.boldPrice}>₱{Number(item.price).toLocaleString()}</Text>
+          </Text>
+          <Text style={styles.dateText}>{new Date(item.created_at).toLocaleDateString()}</Text>
+        </View>
+      </View>
+    );
+  }, [likedItems, handleLike, router]);
 
   if (!fontsLoaded) return null;
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9F9F9" />
-
-      <ScrollView
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      {loading && items.length === 0 && <LoadingOverlay message="FETCHING FEED" />}
+      <FlatList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#000" />}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greeting()},</Text>
-            <Text style={styles.userName}>{userName} 👋</Text>
+        onEndReached={() => loadMore()}
+        onEndReachedThreshold={0.5}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="transparent" />}
+        ListHeaderComponent={() => (
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.brandName}>TOBIE</Text>
+              <Text style={styles.welcomeText}>Hi, {userName} 👋</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <TouchableOpacity><Ionicons name="add-circle-outline" size={26} color="#1A1A1A" /></TouchableOpacity>
+              <TouchableOpacity><Ionicons name="notifications-outline" size={26} color="#1A1A1A" /></TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="search-outline" size={22} color="#1A1A1A" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={handleSignOut}>
-              <Ionicons name="log-out-outline" size={22} color="#1A1A1A" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── Live Banner ── */}
-        <View style={styles.liveBanner}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveBannerText}>23 auctions ending today</Text>
-          <Ionicons name="chevron-forward" size={14} color="#fff" />
-        </View>
-
-        {/* ── Categories ── */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.categoryChip, activeCategory === cat.id && styles.categoryChipActive]}
-              onPress={() => setActiveCategory(cat.id)}
-            >
-              <Ionicons name={cat.icon as any} size={14} color={activeCategory === cat.id ? '#fff' : '#666'} />
-              <Text style={[styles.categoryLabel, activeCategory === cat.id && styles.categoryLabelActive]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Live Auctions ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Live Auctions</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-          {LIVE_AUCTIONS.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.auctionCard} activeOpacity={0.92}>
-              <Image source={{ uri: item.image }} style={styles.cardImage} />
-              <View style={styles.liveBadge}>
-                <View style={styles.liveBadgeDot} />
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardCategory}>{item.category}</Text>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={styles.cardFooter}>
-                  <View>
-                    <Text style={styles.bidLabel}>Current Bid</Text>
-                    <Text style={styles.bidAmount}>${item.currentBid.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.cardMeta}>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="time-outline" size={11} color="#888" />
-                      <Text style={styles.metaText}>{item.endsIn}</Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="flame-outline" size={11} color="#888" />
-                      <Text style={styles.metaText}>{item.bids} bids</Text>
-                    </View>
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.bidBtn}>
-                  <Text style={styles.bidBtnText}>Place Bid</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Ending Soon ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Ending Soon</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.endingSoonList}>
-          {ENDING_SOON.map((item, idx) => (
-            <TouchableOpacity key={item.id} style={[styles.smallCard, idx < ENDING_SOON.length - 1 && styles.smallCardBorder]} activeOpacity={0.85}>
-              <Image source={{ uri: item.image }} style={styles.smallCardImage} />
-              <View style={styles.smallCardBody}>
-                <Text style={styles.smallCardTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.smallCardBid}>${item.currentBid.toLocaleString()}</Text>
-              </View>
-              <View style={styles.smallCardRight}>
-                <View style={styles.urgentBadge}>
-                  <Ionicons name="time-outline" size={10} color="#E53935" />
-                  <Text style={styles.urgentText}>{item.endsIn}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#CCC" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
-    </View>
+        )}
+      />
+      {refreshing && <LoadingOverlay message="REFRESHING" />}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F9F9' },
-  scrollContent: { paddingBottom: 24 },
-
-  // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
-  greeting: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#999' },
-  userName: { fontFamily: 'Unbounded_700Bold', fontSize: 18, color: '#1A1A1A', marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-
-  // Live banner
-  liveBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1A1A', marginHorizontal: 20, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, gap: 8, marginBottom: 20 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ADE80' },
-  liveBannerText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13, color: '#fff' },
-
-  // Categories
-  categoriesRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 4 },
-  categoryChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F0F0F0', borderWidth: 1, borderColor: 'transparent' },
-  categoryChipActive: { backgroundColor: '#1A1A1A' },
-  categoryLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#666' },
-  categoryLabelActive: { color: '#fff' },
-
-  // Section headers
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 24, marginBottom: 14 },
-  sectionTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 15, color: '#1A1A1A' },
-  seeAll: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#999' },
-
-  // Auction cards
-  cardsRow: { paddingHorizontal: 20, gap: 14 },
-  auctionCard: { width: CARD_WIDTH, backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: '#EFEFEF' },
-  cardImage: { width: '100%', height: 180, backgroundColor: '#F0F0F0' },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80' },
-  liveBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#fff', letterSpacing: 0.5 },
-  cardBody: { padding: 14, gap: 6 },
-  cardCategory: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: 0.8 },
-  cardTitle: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: '#1A1A1A', lineHeight: 18 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 },
-  bidLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#AAA' },
-  bidAmount: { fontFamily: 'Unbounded_800ExtraBold', fontSize: 16, color: '#1A1A1A' },
-  cardMeta: { gap: 3, alignItems: 'flex-end' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#888' },
-  bidBtn: { marginTop: 10, backgroundColor: '#1A1A1A', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  bidBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#fff' },
-
-  // Ending soon
-  endingSoonList: { marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#EFEFEF', overflow: 'hidden' },
-  smallCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
-  smallCardBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  smallCardImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#F0F0F0' },
-  smallCardBody: { flex: 1, gap: 3 },
-  smallCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#1A1A1A' },
-  smallCardBid: { fontFamily: 'Unbounded_700Bold', fontSize: 12, color: '#1A1A1A' },
-  smallCardRight: { alignItems: 'flex-end', gap: 6 },
-  urgentBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FEF2F2', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  urgentText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#E53935' },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, backgroundColor: '#FFF' },
+  brandName: { fontFamily: 'Unbounded_800ExtraBold', fontSize: 22, color: '#1A1A1A', letterSpacing: -1 },
+  welcomeText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#999', marginTop: -2 },
+  headerActions: { flexDirection: 'row', gap: 15 },
+  postCard: { marginBottom: 10, backgroundColor: '#FFF' },
+  postHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 },
+  userInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatarPlaceholder: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  avatarImage: { width: 34, height: 34, borderRadius: 17 },
+  postUserName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#1A1A1A' },
+  shopLink: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#3B82F6' },
+  postImage: { width: width, height: width, backgroundColor: '#F8FAFC' },
+  statusTag: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4, zIndex: 10 },
+  tagLive: { backgroundColor: '#EF4444' },
+  tagActive: { backgroundColor: '#10B981' },
+  tagEnded: { backgroundColor: '#64748B' },
+  tagScheduled: { backgroundColor: '#F59E0B' },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' },
+  tagText: { color: '#FFF', fontFamily: 'Inter_700Bold', fontSize: 10 },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
+  leftActions: { flexDirection: 'row', gap: 16, alignItems: 'center' },
+  postContent: { paddingHorizontal: 12, paddingBottom: 10 },
+  likesText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#1A1A1A', marginBottom: 2 },
+  productTitle: { fontFamily: 'Inter_700Bold', fontSize: 15, color: '#1A1A1A', marginBottom: 2, textTransform: 'uppercase' },
+  priceHighlight: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#64748B', marginBottom: 4 },
+  boldPrice: { fontFamily: 'Unbounded_700Bold', color: '#1A1A1A', fontSize: 16 },
+  dateText: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#94A3B8', marginTop: 2 }
 });
