@@ -1,62 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import {
+    FlatList, KeyboardAvoidingView, Modal, Platform,
+    SafeAreaView, StyleSheet, Text, TouchableOpacity, View
+} from 'react-native';
 
 import BidHistoryItem from '@/app/(tabs)/profile/shop/components/BidHistoryItem';
 import AnimatedInput from '@/components/ui/AnimatedInput';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import BiddingHeader from './components/BiddingHeader'; // Adjust path as needed
-
 import { useBidding } from '@/hooks/useBidding';
-import { supabase } from '@/lib/supabase';
-import { showToast } from '@/lib/toast';
+import BiddingHeader from './components/BiddingHeader';
 
 export default function BiddingScreen() {
     const { itemId } = useLocalSearchParams();
     const router = useRouter();
-    const { item, bids, loading, fetchBids } = useBidding(itemId);
-
-    const [modalVisible, setModalVisible] = useState(false);
-    const [bidInput, setBidInput] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const getCurrentHighest = () => bids.length > 0 ? bids[0].amount : item?.price || 0;
-    const getCurrentMinBid = () => Number(getCurrentHighest()) + Number(item?.min_increment || 0);
-
-    const handleOpenModal = () => {
-        setBidInput(getCurrentMinBid().toString());
-        setModalVisible(true);
-    };
-
-    const submitBid = async () => {
-        const amount = parseFloat(bidInput);
-        const minRequired = getCurrentMinBid();
-        
-        if (isNaN(amount) || amount < minRequired) {
-            showToast("INVALID BID", `Minimum bid is ₱${minRequired.toLocaleString()}`, "danger");
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const { error } = await supabase
-                .from('bids')
-                .insert([{ item_id: itemId, bidder_id: user.id, amount }]);
-
-            if (error) throw error;
-            setModalVisible(false);
-            showToast("BID PLACED", `Successfully bid ₱${amount.toLocaleString()}`, "success");
-            await fetchBids();
-        } catch (error: any) {
-            showToast("ERROR", error.message, "danger");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    
+    const { 
+        item, bids, loading, isOwner,
+        modalVisible, setModalVisible,
+        bidInput, setBidInput,
+        isSubmitting, currentHighest, currentMinBid,
+        highestBidder, handleOpenModal, submitBid, sellAuction 
+    } = useBidding(itemId);
 
     if (loading || !item) return <LoadingOverlay message="LOADING..." />;
 
@@ -64,7 +30,11 @@ export default function BiddingScreen() {
         <View style={styles.container}>
             <Stack.Screen options={{ 
                 headerShown: true, 
-                headerTitle: () => <Text style={styles.headerTitleText}>PLACE A BID</Text>,
+                headerTitle: () => (
+                    <Text style={styles.headerTitleText}>
+                        {isOwner ? 'MANAGE AUCTION' : 'PLACE A BID'}
+                    </Text>
+                ),
                 headerTitleAlign: 'center',
                 headerLeft: () => (
                     <TouchableOpacity onPress={() => router.back()} style={styles.navBtn}>
@@ -79,28 +49,35 @@ export default function BiddingScreen() {
                     ListHeaderComponent={<BiddingHeader item={item} />}
                     keyExtractor={(bid) => bid.id}
                     contentContainerStyle={styles.listContent}
-                    renderItem={({ item: bid, index }) => {
-                        const profile = bid.profiles;
-                        return (
-                            <BidHistoryItem 
-                                item={{
-                                    ...bid,
-                                    bidder_name: profile ? `${profile.first_name} ${profile.last_name}` : 'Anonymous',
-                                    avatar_url: profile?.avatar_url
-                                }} 
-                                index={index} 
-                                isTopBid={index === 0} 
-                                diff={bids[index + 1] ? bid.amount - bids[index + 1].amount : 0} 
-                            />
-                        );
-                    }}
+                    renderItem={({ item: bid, index }) => (
+                        <BidHistoryItem 
+                            item={{
+                                ...bid,
+                                bidder_name: bid.profiles ? `${bid.profiles.first_name} ${bid.profiles.last_name}` : 'Anonymous',
+                                avatar_url: bid.profiles?.avatar_url
+                            }} 
+                            index={index} 
+                            isTopBid={index === 0} 
+                            diff={bids[index + 1] ? bid.amount - bids[index + 1].amount : 0} 
+                        />
+                    )}
                     ListEmptyComponent={<View style={styles.emptyContainer}><Text style={styles.emptyText}>No bids yet.</Text></View>}
                 />
             </SafeAreaView>
 
-            <TouchableOpacity style={styles.fab} onPress={handleOpenModal}>
-                <Ionicons name="hammer-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
+            {isOwner ? (
+                <TouchableOpacity 
+                    style={[styles.fab, styles.sellFab, !highestBidder && { opacity: 0.5 }]} 
+                    onPress={sellAuction}
+                    disabled={isSubmitting || !highestBidder}
+                >
+                    <Ionicons name="checkmark-circle" size={30} color="#FFF" />
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity style={styles.fab} onPress={handleOpenModal}>
+                    <Ionicons name="hammer-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+            )}
 
             <Modal visible={modalVisible} transparent animationType="slide">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -114,15 +91,23 @@ export default function BiddingScreen() {
                         <View style={styles.modalPriceSummary}>
                            <View style={styles.summaryItem}>
                                <Text style={styles.summaryLabel}>Current Bid</Text>
-                               <Text style={styles.summaryValue}>₱{getCurrentHighest().toLocaleString()}</Text>
+                               <Text style={styles.summaryValue}>₱{currentHighest.toLocaleString()}</Text>
                            </View>
                            <View style={[styles.summaryItem, { alignItems: 'flex-end' }]}>
                                <Text style={styles.summaryLabel}>Min. Required</Text>
-                               <Text style={[styles.summaryValue, { color: '#10B981' }]}>₱{getCurrentMinBid().toLocaleString()}</Text>
+                               <Text style={[styles.summaryValue, { color: '#10B981' }]}>
+                                   ₱{currentMinBid.toLocaleString()}
+                               </Text>
                            </View>
                         </View>
                         <View style={styles.animatedInputContainer}>
-                            <AnimatedInput placeholder="YOUR BID AMOUNT" value={bidInput} onChangeText={setBidInput} keyboardType="numeric" rightElement={<Text style={styles.currencySuffix}>₱</Text>} />
+                            <AnimatedInput 
+                                placeholder="YOUR BID AMOUNT" 
+                                value={bidInput} 
+                                onChangeText={setBidInput} 
+                                keyboardType="numeric" 
+                                rightElement={<Text style={styles.currencySuffix}>₱</Text>} 
+                            />
                         </View>
                         <TouchableOpacity style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} onPress={submitBid} disabled={isSubmitting}>
                             <Text style={styles.submitBtnText}>{isSubmitting ? 'PLACING...' : 'CONFIRM BID'}</Text>
@@ -141,7 +126,25 @@ const styles = StyleSheet.create({
     listContent: { paddingBottom: 100 },
     emptyContainer: { padding: 40, alignItems: 'center' },
     emptyText: { color: '#94A3B8' },
-    fab: { position: 'absolute', bottom: 30, right: 16, width: 60, height: 60, borderRadius: 30, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+    fab: { 
+        position: 'absolute', 
+        bottom: 30, 
+        right: 16, 
+        width: 60, 
+        height: 60, 
+        borderRadius: 30, 
+        backgroundColor: '#111', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    sellFab: { 
+        backgroundColor: '#10B981' 
+    },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

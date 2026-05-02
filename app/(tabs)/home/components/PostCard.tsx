@@ -31,7 +31,7 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
     statusLabel = 'UPCOMING';
     statusStyle = styles.tagScheduled;
   } else if (isAuction && isActive) {
-    statusLabel = 'LIVE AUCTION';
+    statusLabel = 'LIVE';
     statusStyle = styles.tagLive;
   }
 
@@ -43,6 +43,7 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
+        {/* User Info on the Left */}
         <View style={styles.userInfo}>
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
@@ -56,17 +57,16 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
             <Text style={styles.shopLink}>{shopDisplayLink}</Text>
           </View>
         </View>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
-        </TouchableOpacity>
-      </View>
 
-      <View>
-        <Image source={{ uri: item.image_url }} style={styles.postImage} resizeMode="cover" />
+        {/* Tag placed on the Right (where the 3 dots were) */}
         <View style={[styles.statusTag, statusStyle]}>
           {isAuction && isActive && <View style={styles.liveDot} />}
           <Text style={styles.tagText}>{statusLabel}</Text>
         </View>
+      </View>
+
+      <View>
+        <Image source={{ uri: item.image_url }} style={styles.postImage} resizeMode="cover" />
       </View>
 
       <View style={styles.actionRow}>
@@ -101,7 +101,6 @@ const PostCard = React.memo(({ item, isLiked, onLike }: PostCardProps) => {
       <View style={styles.postContent}>
         <Text style={styles.likesText}>{(Number(item.likes_count) || 0).toLocaleString()} likes</Text>
         
-        {/* Updated Title and Price Row */}
         <View style={styles.titlePriceRow}>
           <Text style={styles.productTitle} numberOfLines={2}>
             {item.title}
@@ -167,31 +166,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC' 
   },
   statusTag: { 
-    position: 'absolute', 
-    top: 12, 
-    left: 12, 
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingHorizontal: 8, 
     paddingVertical: 4, 
     borderRadius: 4, 
-    gap: 4, 
-    zIndex: 10 
+    gap: 4 
   },
   tagLive: { backgroundColor: '#EF4444' },
   tagActive: { backgroundColor: '#10B981' },
   tagEnded: { backgroundColor: '#64748B' },
   tagScheduled: { backgroundColor: '#F59E0B' },
   liveDot: { 
-    width: 6, 
-    height: 6, 
-    borderRadius: 3, 
+    width: 5, 
+    height: 5, 
+    borderRadius: 2.5, 
     backgroundColor: '#FFF' 
   },
   tagText: { 
     color: '#FFF', 
     fontFamily: 'Inter_700Bold', 
-    fontSize: 10 
+    fontSize: 9 
   },
   actionRow: { 
     flexDirection: 'row', 
@@ -220,12 +215,11 @@ const styles = StyleSheet.create({
     gap: 10
   },
   productTitle: { 
-    flex: 1, // Takes up available space
+    flex: 1,
     fontFamily: 'Inter_700Bold', 
     fontSize: 15, 
     color: '#1A1A1A', 
     marginBottom: 2 
-    // textTransform removed to respect user input
   },
   priceContainer: {
     alignItems: 'flex-end'
