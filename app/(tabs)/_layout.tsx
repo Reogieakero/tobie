@@ -181,6 +181,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile/shop/settings"                    options={{ href: null }} />
       <Tabs.Screen name="profile/shop/edit-profile"                    options={{ href: null }} />
       <Tabs.Screen name="home/bidding"                    options={{ href: null }} />
+      <Tabs.Screen name="home/components/PostCard"                    options={{ href: null }} />
+      <Tabs.Screen name="home/components/BiddingHeader"                    options={{ href: null }} />
     </Tabs>
   );
 }
